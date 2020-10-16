@@ -1,1 +1,11 @@
 {% extends "layout.html" %}
+
+{% block body %}
+<h1>{{ name }} </h1>
+
+<ul>
+  {% for p in posts %}
+  <li><a href="{{ p.get_link()['url'] }}">{{p.name}}</a></li>
+  {% endfor %}
+</ul>
+{% endblock %}

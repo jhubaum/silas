@@ -4,5 +4,7 @@
 Here is some text
 
 * This is a section
+Some text in a section
 ** With a subsection
 and some more text
+* And another toplevel section

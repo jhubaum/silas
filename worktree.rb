@@ -19,19 +19,95 @@ class OrgDirectory
 end
 
 class OrgFile
+  attr_reader :children
+
   def initialize dirname=nil, file_name
     @name = (dirname == nil) ? file_name : File.join(dirname, file_name)
     raise OrgReadFileError, "file '#{@name}' does not exist" unless File.file? @name
 
+    @preamble = { }
     tokens = Tokenizer.tokenize File.open(@name).read
-    puts tokens
 
-  end
+    #parse preamble
+    while tokens.pop_if(:attribute_start) != nil
+      val = tokens.pop_expected :word
+      tokens.pop_expected :colon
+      tokens.pop if tokens.peek? :whitespace
+      @preamble[val] = tokens_to_s tokens.pop_until(:newline, remove_delim=true)
+    end
 
-  def path
-    @name
+    while tokens.pop_if(:newline) != nil
+    end
+
+    @children = OrgParsing.parse tokens
   end
 end
 
+module OrgParsing
+  def OrgParsing.parse tokens, until_token=nil
+    puts "Enter Parse (until token: #{until_token})"
+    elements = []
+    while tokens.has_tokens?
+      token = tokens.peek
+      return elements if token.is? until_token
+
+      if token.is? :section_start
+        section = try_section(tokens)
+        if section.level > 0 and elements.last.instance_of? Section
+          elements.last.append section
+        else
+          elements << section
+        end
+      else
+        elements << try_text(tokens)
+      end
+    end
+    elements
+  end
+
+  def OrgParsing.try_section tokens
+    tokens.pop
+    level = 0
+    token = tokens.pop
+    while token.is? :asterisk
+      level += 1
+      token = tokens.pop
+    end
+    raise OrgParseError, "expected whitespace" unless token.is? :whitespace
+    title = tokens_to_s tokens.pop_until(:newline)
+    tokens.pop
+    Section.new level, title, parse(tokens, :section_start)
+  end
+
+  def OrgParsing.try_text tokens
+    Text.new tokens_to_s(tokens.pop_until :section_start)
+  end
+end
+
+class Section
+  attr_reader :level, :title, :children
+
+  def initialize level, title, children
+    @level = level
+    @title = title
+    @children = children
+  end
+
+  def append element
+    @children << element
+  end
+end
+
+
+class Text
+  attr_reader :text
+
+  def initialize text
+    @text = text
+  end
+end
+
+
+
 #OrgDirectory.new "test"
-OrgFile.new "test/simple.org"
+FILE = OrgFile.new "test/simple.org"

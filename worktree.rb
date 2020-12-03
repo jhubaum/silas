@@ -1,3 +1,5 @@
+require './tokenizer'
+
 class OrgParseError < ::StandardError
 end
 
@@ -20,6 +22,9 @@ class OrgFile
   def initialize dirname=nil, file_name
     @name = (dirname == nil) ? file_name : File.join(dirname, file_name)
     raise OrgReadFileError, "file '#{@name}' does not exist" unless File.file? @name
+
+    tokens = Tokenizer.tokenize File.open(@name).read
+    puts tokens
 
   end
 

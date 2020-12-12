@@ -1,0 +1,39 @@
+html {
+    color: #555;
+    background-color:#fff;
+    margin: 0;
+    padding: 0;
+}
+
+main,footer {
+    display: block;
+    margin: 0 auto;
+    width: 80%;
+}
+
+a {
+    transition: all 0.3s ease-out;
+    color: #4a9ae1;
+    text-decoration: none;
+}
+
+a:hover {
+    color:#4a4fe0;
+}
+
+footer {
+    padding-top: 1rem;
+    position: relative;
+    text-align: center
+}
+
+footer .top{
+    color: #555;
+    opacity: .6;
+    font-size:1.4rem;
+
+}
+
+footer .top:hover{
+    opacity: 1;
+}

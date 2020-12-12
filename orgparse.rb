@@ -33,7 +33,7 @@ class OrgFile
       val = tokens.pop_expected :word
       tokens.pop_expected :colon
       tokens.pop if tokens.peek? :whitespace
-      @preamble[val] = tokens_to_s tokens.pop_until(:newline, remove_delim=true)
+      @preamble[val.to_sym] = tokens_to_s tokens.pop_until(:newline, remove_delim=true)
     end
 
     while tokens.pop_if(:newline) != nil
@@ -107,7 +107,7 @@ class Section
   end
 
   def heading
-    "<h#{@level+1}>#{@title}</h#{@level+1}>"
+    "<h#{@level+2}>#{@title}</h#{@level+2}>"
   end
 
   def iterate_elements &block

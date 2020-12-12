@@ -4,14 +4,22 @@
   <head>
     <meta charset="utf-8">
     <link href="css/style.css"  rel="stylesheet" type="text/css">
-    <title><%= title %></title>
+    <title>Johannes Huwald ~ <%= @preamble[:title] %></title>
   </head>
   <body>
+    <main>
+    <h1><%= @preamble[:title] %></h1>
     <% iterate_elements() do |elem| %>
       <% case elem when Text %><%= elem.text %>
         <% when Section %>
         <%= elem.heading %>
       <% end %>
-    <% end %>
+      <% end %>
+    </main>
+    <footer>
+      If you liked what you read, consider to say Hi at <a href="mailto:hey@jhuwald.com">hey@jhuwald.com</a>.
+      <hr size="0.5px" width="90%">
+      <a href="#" class="top">Top</a>
+    </footer>
   </body>
 </html>

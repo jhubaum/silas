@@ -63,7 +63,6 @@ class TokenList
 
   def pop
     result = @tokens[0]
-    puts result
     @tokens = @tokens[1..-1]
     result
   end

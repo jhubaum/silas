@@ -39,7 +39,16 @@ class OrgFile
     while tokens.pop_if(:newline) != nil
     end
 
-    @children = OrgParsing.parse tokens
+    @elements = OrgParsing.parse tokens
+  end
+
+  def iterate_elements &block
+    @elements.each do |elem|
+      block.call elem
+      if elem.respond_to? :iterate_elements
+        elem.iterate_elements { |e| block.call e }
+      end
+    end
   end
 end
 
@@ -95,6 +104,19 @@ class Section
 
   def append element
     @children << element
+  end
+
+  def heading
+    "<h#{@level+1}>#{@title}</h#{@level+1}>"
+  end
+
+  def iterate_elements &block
+    @children.each do |elem|
+      block.call elem
+      if elem.respond_to? :iterate_elements
+        elem.iterate_elements { |e| block.call e }
+      end
+    end
   end
 end
 

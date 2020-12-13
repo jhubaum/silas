@@ -24,6 +24,10 @@ class TestParsingSimple < Test::Unit::TestCase
     text = @file.elements[3].children
     assert_true(text[0].is_a? Block)
     assert_true(text[0].instance_of? Comment)
+
+    quote = text[1].elements[1]
+    assert_equal("Someone quoteable", quote.quotee)
+    assert_equal("I said something super smart", quote.text)
   end
 
   def test_section_id

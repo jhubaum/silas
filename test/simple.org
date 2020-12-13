@@ -28,3 +28,9 @@ Now, some other kinds of objects:
 This is a comment block with some content.
 Again, it has multiple lines. Isn't that fun? I don't think so...
 #+END_COMMENT
+
+And here is a quote:
+#+BEGIN_QUOTE
+I said something super smart
+--- Someone quoteable
+#+END_QUOTE

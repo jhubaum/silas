@@ -117,3 +117,10 @@ footer .top:hover{
 .comment-block::before {
     content: "// ";
 }
+
+blockquote {
+    border-left: 0.25rem solid #e5e5e5;
+    color: var(--highlight-color);
+    margin: .8rem 0;
+    padding: .5rem 1rem;
+}

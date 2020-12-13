@@ -219,6 +219,8 @@ module OrgParsing
     case expected
     when "COMMENT"
       result = Comment.new parse_text_elements(tokens)
+    when "QUOTE"
+      result = Quote.new parse_text_elements(tokens)
     else
       raise OrgParseError, "#{t.loc}: Unknown block type #{t.value}"
     end
@@ -323,6 +325,18 @@ class Comment < Block
 
   def class_name
     "comment-block"
+  end
+end
+
+class Quote < Block
+  attr_reader :text, :quotee
+
+  def initialize elements
+    super elements
+  end
+
+  def to_html
+    "<blockquote>#{@elements.map(&:to_html).join(" ")}</blockquote>"
   end
 end
 

@@ -25,4 +25,9 @@ class TestParsingSimple < Test::Unit::TestCase
     assert_true(text[0].is_a? Block)
     assert_true(text[0].instance_of? Comment)
   end
+
+  def test_section_id
+    assert_equal("first", @file.elements[1].id)
+    assert_equal("and-another-top-level-section", @file.elements[2].id)
+  end
 end

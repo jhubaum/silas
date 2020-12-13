@@ -5,6 +5,9 @@
 Here is some text
 
 * This is a section
+:PROPERTIES:
+:CUSTOM_ID: first
+:END:
 Some text in a section
 ** With a subsection
 and some more text

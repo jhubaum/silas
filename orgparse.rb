@@ -103,7 +103,36 @@ module OrgParsing
     raise OrgParseError, "expected whitespace" unless token.is? :whitespace
     title = tokens_to_s tokens.pop_until { |t| t.is? :newline }
     tokens.pop
-    Section.new level, title, parse(tokens, :section_start)
+
+    properties = {}
+    if tokens.peek.is? :colon
+      properties = parse_section_properties tokens
+    end
+    Section.new level, title, parse(tokens, :section_start), properties
+  end
+
+  def OrgParsing.parse_section_properties tokens
+    properties = {}
+    tokens.pop_expected :colon
+    tmp = tokens.pop_expected :word
+    raise OrgParseError, "#{tmp.loc}: expected 'PROPERTIES' got #{tmp.value}" unless tmp.value == "PROPERTIES"
+    tokens.pop_expected :colon
+    tokens.pop_expected :newline
+
+    while true
+      tokens.pop_expected :colon
+      key = tokens.pop_until { |t| t.is? :colon }
+      tokens.pop_expected :colon
+      break if key[0].value == "END"
+
+      tokens.pop_while { |t| t.is? :whitespace }
+      value = tokens.pop_until { |t| t.is? :newline }
+      tokens.pop_expected :newline
+
+      properties[tokens_to_s key] = tokens_to_s value
+    end
+
+    properties
   end
 
   def OrgParsing.parse_text tokens
@@ -233,12 +262,17 @@ class Date
 end
 
 class Section
-  attr_reader :level, :title, :children
+  attr_reader :level, :title, :children, :id
 
-  def initialize level, title, children
+  def initialize level, title, children, properties
     @level = level
     @title = title
     @children = children
+    if properties.key? "CUSTOM_ID"
+      @id = properties["CUSTOM_ID"]
+    else
+      @id = title.downcase.gsub(" ", "-")
+    end
   end
 
   def append element
@@ -246,7 +280,7 @@ class Section
   end
 
   def heading
-    "<h#{@level+2}>#{@title}</h#{@level+2}>"
+    "<h#{@level+2} id=\"#{@id}\">#{@title}</h#{@level+2}>"
   end
 
   def iterate_elements &block

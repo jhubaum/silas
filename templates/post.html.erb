@@ -26,7 +26,7 @@
 
       <% iterate_elements() do |elem| %>
       <% case elem when Paragraph %>
-      <p><%= elem.elements.join(" ") %></p>
+      <p><%= elem.elements.map { |e| e.to_html }.join(" ") %></p>
           <% when Section %>
           <%= elem.heading %>
         <% end %>

@@ -1,4 +1,5 @@
 require './tokenizer'
+require './token_helpers'
 
 class OrgParseError < ::StandardError
 end
@@ -103,17 +104,42 @@ module OrgParsing
     Section.new level, title, parse(tokens, :section_start)
   end
 
-  def OrgParsing.try_paragraph tokens
-    #puts "Start paragraph with #{tokens.peek.kind}"
+  def OrgParsing.parse_special_text tokens
+  end
 
-    lines = []
-    while tokens.has_tokens? and tokens.peek.is? :word
-      text = tokens.pop_until { |t| t.is_any? [:section_start, :newline] }
-      lines << tokens_to_s(text)
+  def OrgParsing.parse_text tokens
+    tokens_to_s tokens.pop_while { |t| t.is_text? }
+  end
+
+  def OrgParsing.parse_special_text tokens
+    delim = tokens.pop.kind
+    text = parse_text tokens
+    t = tokens.pop
+
+    raise OrgParseError, "Expected SpecialText delimiter #{expected} but found #{t.value}" unless t.is? delim
+
+    case delim
+    when :asterisk
+      SpecialText.new :bold, text
+    when :slash
+      SpecialText.new :italic, text
+    end
+  end
+
+  def OrgParsing.try_paragraph tokens
+    elements = []
+    until tokens.no_tokens? or tokens.peek.is_any? [:newline, :section_start]
+      case
+      when tokens.peek.is_text?
+        elements << parse_text(tokens)
+      when tokens.peek.is_special_text_delimiter?
+        elements << parse_special_text(tokens)
+      else
+        raise OrgParseError, "Unkown token '#{tokens.peek.value}' to start paragraph"
+      end
       tokens.pop_if { |t| t.is? :newline }
     end
-
-    Paragraph.new lines
+    Paragraph.new elements
   end
 
   def OrgParsing.s_to_date s
@@ -170,11 +196,41 @@ class Section
   end
 end
 
-
 class Paragraph
   attr_reader :elements
 
   def initialize elements
     @elements = elements
+  end
+end
+
+class SpecialText
+  attr_accessor :text
+  attr_reader :kind
+
+  def initialize kind, text=""
+    @kind = kind
+    @text = text
+  end
+
+  def text= text
+    @text
+  end
+
+  def to_html
+    case @kind
+    when :bold
+      "<b>#{text}</b>"
+    when :italic
+      "<em>#{text}</em>"
+    else
+      raise ArgumentError, "Invalid kind #{kind} for SpecialText"
+    end
+  end
+end
+
+class String
+  def to_html
+    self
   end
 end

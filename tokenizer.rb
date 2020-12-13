@@ -28,7 +28,8 @@ module Tokenizer
     [/"/, :quotation_mark],
     [/'/, :single_quote],
     [/\//, :slash],
-    [/\?/, :question_mark]
+    [/\?/, :question_mark],
+    [/!/, :exclamation_mark]
   ]
 end
 
@@ -48,23 +49,9 @@ class Token
     @kind, @value = kind, value
   end
 
-  def is? kind
-    @kind == kind
-  end
-
-  def is_any? kinds
-    kinds.any? { |k| @kind == k }
-  end
-
   def to_s
     "<Token #{@kind}>"
   end
-end
-
-def tokens_to_s tokens
-  s = ""
-  tokens.each { |t| s << t.value }
-  s
 end
 
 class TokenList
@@ -74,6 +61,10 @@ class TokenList
 
   def has_tokens?
     @tokens.length > 0
+  end
+
+  def no_tokens?
+    @tokens.length == 0
   end
 
   def peek

@@ -22,7 +22,7 @@ class OrgDirectory
 end
 
 class OrgFile
-  attr_reader :children
+  attr_reader :preamble, :elements
 
   def initialize dirname=nil, file_name
     @name = (dirname == nil) ? file_name : File.join(dirname, file_name)
@@ -32,17 +32,22 @@ class OrgFile
     tokens = Tokenizer.tokenize File.open(@name).read
 
     #parse preamble
-    while tokens.pop_if(:attribute_start) != nil
+    while tokens.pop_if { |t| t.is? :attribute_start } != nil
       val = tokens.pop_expected :word
       tokens.pop_expected :colon
-      tokens.pop if tokens.peek? :whitespace
-      @preamble[val.to_sym] = tokens_to_s tokens.pop_until(:newline, remove_delim=true)
+      tokens.pop_if { |t| t.is? :whitespace }
+      elems = tokens.pop_until { |t| t.is? :newline }
+      @preamble[val.to_sym] = tokens_to_s elems
+
+      # remove newline
+      tokens.pop
     end
 
     @preamble[:published] = OrgParsing.s_to_date @preamble[:published]
 
-    while tokens.pop_if(:newline) != nil
-    end
+    tokens.pop_while { |t| t.is? :newline }
+
+    #puts "Finished preamble (#{preamble.keys})"
 
     @elements = OrgParsing.parse tokens
   end
@@ -64,22 +69,27 @@ module OrgParsing
     while tokens.has_tokens?
       token = tokens.peek
       return elements if token.is? until_token
+      #puts "Enter parsing loop with #{token.kind}"
 
-      if token.is? :section_start
+      case token.kind
+      when :section_start
         section = try_section(tokens)
         if section.level > 0 and elements.last.instance_of? Section
           elements.last.append section
         else
           elements << section
         end
+      when :newline
+        tokens.pop
       else
-        elements << try_text(tokens)
+        elements << try_paragraph(tokens)
       end
     end
     elements
   end
 
   def OrgParsing.try_section tokens
+    #puts "Start section"
     tokens.pop
     level = 0
     token = tokens.pop
@@ -88,13 +98,22 @@ module OrgParsing
       token = tokens.pop
     end
     raise OrgParseError, "expected whitespace" unless token.is? :whitespace
-    title = tokens_to_s tokens.pop_until(:newline)
+    title = tokens_to_s tokens.pop_until { |t| t.is? :newline }
     tokens.pop
     Section.new level, title, parse(tokens, :section_start)
   end
 
-  def OrgParsing.try_text tokens
-    Text.new tokens_to_s(tokens.pop_until :section_start)
+  def OrgParsing.try_paragraph tokens
+    #puts "Start paragraph with #{tokens.peek.kind}"
+
+    lines = []
+    while tokens.has_tokens? and tokens.peek.is? :word
+      text = tokens.pop_until { |t| t.is_any? [:section_start, :newline] }
+      lines << tokens_to_s(text)
+      tokens.pop_if { |t| t.is? :newline }
+    end
+
+    Paragraph.new lines
   end
 
   def OrgParsing.s_to_date s
@@ -152,10 +171,10 @@ class Section
 end
 
 
-class Text
-  attr_reader :text
+class Paragraph
+  attr_reader :elements
 
-  def initialize text
-    @text = text
+  def initialize elements
+    @elements = elements
   end
 end

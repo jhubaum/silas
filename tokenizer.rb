@@ -49,7 +49,11 @@ class Token
   end
 
   def is? kind
-    kind == nil ? false : @kind == kind
+    @kind == kind
+  end
+
+  def is_any? kinds
+    kinds.any? { |k| @kind == k }
   end
 
   def to_s
@@ -76,38 +80,36 @@ class TokenList
     @tokens.first
   end
 
-  def peek? token_type
-    return false unless has_tokens?
-    @tokens.first.is? token_type
-  end
-
   def pop
     result = @tokens[0]
     @tokens = @tokens[1..-1]
     result
   end
 
-  def pop_if token_type
-    return nil unless peek? token_type
-    pop.value
+  def pop_if &block
+    raise ArgumentError, "No block given in pop_if" unless block_given?
+    pop.value if has_tokens? and block.call peek
   end
 
-  def pop_expected token_type
+  def pop_expected kind
     result = pop
-    raise TokenListError, "pop_expected found type #{result.type} but expected #{token_type}" unless result.is? token_type
+    raise TokenListError, "pop_expected found type #{result.kind} but expected #{kind}" unless result.is? kind
 
     result.value
   end
 
-  def pop_until token_type, remove_delim=false
+  def pop_while &block
+    raise ArgumentError, "No block given in pop_while" unless block_given?
     result = []
-    while not peek? token_type and has_tokens?
+    while has_tokens? and block.call peek
       result << pop
     end
-    if remove_delim
-      pop
-    end
     result
+  end
+
+  def pop_until &block
+    raise ArgumentError, "No block given in pop_until" unless block_given?
+    pop_while { |t| not block.call t }
   end
 end
 

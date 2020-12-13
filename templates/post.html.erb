@@ -25,7 +25,8 @@
       <span id="date-published"> Published on <%= @preamble[:published].to_pretty_s %></span>
 
       <% iterate_elements() do |elem| %>
-        <% case elem when Text %><%= elem.text %>
+      <% case elem when Paragraph %>
+      <p><%= elem.elements.join(" ") %></p>
           <% when Section %>
           <%= elem.heading %>
         <% end %>

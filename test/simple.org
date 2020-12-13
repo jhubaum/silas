@@ -8,7 +8,8 @@ Here is some text
 Some text in a section
 ** With a subsection
 and some more text
-* And another toplevel section
+* And another top-level section
 And now I have a slightly more complicated text. It even contains a newline.
+After this sentence a new paragraph starts.
 
 However, until now the only punctuation has been a dot (which changed with this sentence). The text even contains some *bold* and /italic/ text.

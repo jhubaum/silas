@@ -9,3 +9,6 @@ Some text in a section
 ** With a subsection
 and some more text
 * And another toplevel section
+And now I have a slightly more complicated text. It even contains a newline.
+
+However, until now the only punctuation has been a dot (which changed with this sentence). The text even contains some *bold* and /italic/ text.

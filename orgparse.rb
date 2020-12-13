@@ -100,8 +100,7 @@ module OrgParsing
       level += 1
       token = tokens.pop
     end
-    raise OrgParseError, "expected whitespace" unless token.is? :whitespace
-    title = tokens_to_s tokens.pop_until { |t| t.is? :newline }
+    title = tokens_to_s [token] + tokens.pop_until { |t| t.is? :newline }
     tokens.pop
 
     properties = {}

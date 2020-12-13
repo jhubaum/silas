@@ -11,6 +11,9 @@ Here is some text
 Some text in a section
 ** With a subsection
 and some more text
+
+A previous version didn't support *bold text* at the beginning of a line.
+*Does it work now?*
 * And another top-level section
 And now I have a slightly more complicated text. It even contains a newline.
 After this sentence a new paragraph starts.

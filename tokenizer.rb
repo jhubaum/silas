@@ -8,7 +8,7 @@ module Tokenizer
     [/\d+/, :number],
     [/:/, :colon],
     [/;/, :semicolon],
-    [/\n\*/, :section_start],
+    [/\n\* /, :section_start],
     [/\*/, :asterisk],
     [/\n/, :newline],
     [/<\d{4}-\d{2}-\d{2}>/, :date],

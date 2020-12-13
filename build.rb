@@ -12,6 +12,10 @@ end
 Dir.mkdir OUTPUT_FOLDER_NAME
 FileUtils.cp_r("css", OUTPUT_FOLDER_NAME + "/css")
 
-f = OrgFile.new ARGV[0]
+if ARGV[0] == "debug"
+  f = OrgFile.new "test/simple.org"
+else
+  f = OrgFile.new "/home/johannes/gtd/website/test.org"
+end
 
 render_post f, OUTPUT_FOLDER_NAME

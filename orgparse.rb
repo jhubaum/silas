@@ -147,7 +147,7 @@ module OrgParsing
     text = parse_text tokens
     t = tokens.pop
 
-    raise OrgParseError, "Expected SpecialText delimiter #{expected} but found #{t.value}" unless t.is? delim
+    raise OrgParseError, "Expected SpecialText delimiter #{delim} but found #{t.value}" unless t.is? delim
 
     case delim
     when :asterisk

@@ -12,7 +12,8 @@ class Token
   def is_text?
     is_any? [:word, :whitespace, :minus, :hypen, :number, :dot, :comma,
              :question_mark, :exclamation_mark, :left_parenthesis,
-             :right_parenthesis, :single_quote, :colon, :semicolon]
+             :right_parenthesis, :single_quote, :colon, :semicolon,
+             :quotation_mark]
   end
 
   def is_special_text_delimiter?

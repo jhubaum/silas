@@ -10,20 +10,74 @@ html {
     padding: 0;
 }
 
+hr {
+    opacity: 0.4;
+}
+
 h1 {
     margin-bottom: 0px;
+    font-size: 2.8rem;
 }
 
 #date-published {
+    font-style: italic;
     margin-bottom: 1.5rem;
     display: block;
     opacity: 0.6;
 }
 
-main,footer {
+main,footer, .nav-container {
     display: block;
     margin: 0 auto;
     width: 80%;
+}
+
+.nav {
+    overflow: auto;
+}
+
+.nav-container{
+    margin:1rem auto;
+    position:relative;
+    text-align:center
+}
+
+.nav ul{
+    list-style-type:none;
+    margin:1rem 0 0;
+    padding:0;
+    text-align:center
+}
+.nav li{
+    display:inline-block;
+    padding:0 2rem 0 0
+}
+.nav li:last-child {
+    padding-right:0
+}
+.nav a:hover,.nav a:focus{
+    opacity: 1;
+    color: var(--font-color)
+}
+
+.nav a {
+    transition:all 0.2s ease-out;
+    color: var(--font-color);
+    opacity:.6;
+}
+
+#nav-title{
+    opacity: 1;
+}
+
+#nav-title:hover, #nav-title:focus{
+    opacity:.6
+}
+
+#nav-title h2 {
+    display: inline-block;
+    margin: 0;
+    padding-right: .2rem;
 }
 
 a {
@@ -39,10 +93,11 @@ a:hover {
 footer {
     padding-top: 1rem;
     position: relative;
-    text-align: center
+    text-align: center;
 }
 
 footer .top{
+    width: 80%;
     color: var(--font-color);
     opacity: .6;
     font-size:1.4rem;

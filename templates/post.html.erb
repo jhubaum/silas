@@ -7,6 +7,19 @@
     <title>Johannes Huwald ~ <%= @preamble[:title] %></title>
   </head>
   <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="https://jhuwald.com/" id="nav-title">
+          <h2>Johannes Huwald</h2>
+        </a>
+        <ul>
+          <% pages.each do |page| %>
+            <li><a href="<%= page[0] %>"><%= page[1] %></a></li>
+          <% end %>
+        </ul>
+      </div>
+      <hr size="0.5px" width="90%">
+    </nav>
     <main>
       <h1><%= @preamble[:title] %></h1>
       <span id="date-published"> Published on <%= @preamble[:published].to_pretty_s %></span>

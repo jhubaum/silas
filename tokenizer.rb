@@ -5,14 +5,30 @@ module Tokenizer
     [/#\+/, :attribute_start],
     [/ /, :whitespace],
     [/[[:alpha:]]+/, :word],
+    [/\d+/, :number],
     [/:/, :colon],
+    [/;/, :semicolon],
     [/\n\*/, :section_start],
     [/\*/, :asterisk],
     [/\n/, :newline],
     [/<\d{4}-\d{2}-\d{2}>/, :date],
     [/-/, :minus],
+    [/–/, :hypen],
     [/</, :less_than],
-    [/>/, :greater_than]
+    [/>/, :greater_than],
+    [/,/, :comma],
+    [/\./, :dot],
+    [/_/, :underscore],
+    [/\[/, :left_square_brace],
+    [/\]/, :right_square_brace],
+    [/{/, :left_curly_brace],
+    [/}/, :right_curly_brace],
+    [/\(/, :left_parenthesis],
+    [/\)/, :right_parenthesis],
+    [/"/, :quotation_mark],
+    [/'/, :single_quote],
+    [/\//, :slash],
+    [/\?/, :question_mark]
   ]
 end
 

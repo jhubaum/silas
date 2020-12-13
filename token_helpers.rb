@@ -1,6 +1,9 @@
 require "./tokenizer"
 
 class Token
+  def loc
+    "l. #{@line}:#{@loc}"
+  end
   def is? kind
     @kind == kind
   end

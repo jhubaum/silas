@@ -45,8 +45,8 @@ end
 class Token
   attr_reader :kind, :value
 
-  def initialize kind, value
-    @kind, @value = kind, value
+  def initialize kind, value, line, loc
+    @kind, @value, @line, @loc = kind, value, line, loc
   end
 
   def to_s
@@ -108,18 +108,23 @@ module Tokenizer
   public
   def Tokenizer.tokenize expression
     line = 1
+    loc = 1
     tokens = []
     while expression.length > 0
       matched = false
       TOKEN_INFOS.each do |info|
         if (info.first =~ expression) == 0
           matched = true
-          tokens << Token.new(info.last, $~.to_s)
+          tokens << Token.new(info.last, $~.to_s, line, loc)
           break
         end
       end
       raise UnknownCharError, "Unknown char '#{expression[0]}' in line #{line}" unless matched
-      line += 1 if tokens.last.is? :newline
+      loc += tokens.last.value.length
+      if tokens.last.is? :newline
+        line += 1
+        loc = 1
+      end
       expression.delete_prefix!(tokens.last.value)
     end
     return TokenList.new tokens

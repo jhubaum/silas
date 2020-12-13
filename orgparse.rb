@@ -135,7 +135,7 @@ module OrgParsing
       when tokens.peek.is_special_text_delimiter?
         elements << parse_special_text(tokens)
       else
-        raise OrgParseError, "Unkown token '#{tokens.peek.value}' to start paragraph"
+        raise OrgParseError, "Unkown token '#{tokens.peek.value}' to start paragraph (#{tokens.peek.loc})"
       end
       tokens.pop_if { |t| t.is? :newline }
     end

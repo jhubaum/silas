@@ -1,6 +1,11 @@
+:root {
+    --font-color: #555;
+    --background-color: #fff;
+}
+
 html {
-    color: #555;
-    background-color:#fff;
+    color: var(--font-color);
+    background-color: var(--background-color);
     margin: 0;
     padding: 0;
 }
@@ -38,7 +43,7 @@ footer {
 }
 
 footer .top{
-    color: #555;
+    color: var(--font-color);
     opacity: .6;
     font-size:1.4rem;
 

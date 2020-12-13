@@ -12,7 +12,7 @@ class Token
   def is_text?
     is_any? [:word, :whitespace, :minus, :hypen, :number, :dot, :comma,
              :question_mark, :exclamation_mark, :left_parenthesis,
-             :right_parenthesis, :single_quote]
+             :right_parenthesis, :single_quote, :colon, :semicolon]
   end
 
   def is_special_text_delimiter?
@@ -20,7 +20,7 @@ class Token
   end
 
   def is_text_element?
-    is_text? or is_special_text_delimiter?
+    is_text? or is_special_text_delimiter? or is?(:left_square_brace)
   end
 end
 

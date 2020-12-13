@@ -110,6 +110,10 @@ module OrgParsing
     tokens_to_s tokens.pop_while { |t| t.is_text? }
   end
 
+  def OrgParsing.parse_link_target tokens
+    tokens_to_s tokens.pop_while { |t| t.is_text? or t.is? :slash }
+  end
+
   def OrgParsing.parse_special_text tokens
     delim = tokens.pop.kind
     text = parse_text tokens
@@ -135,10 +139,27 @@ module OrgParsing
       when t.is?(:attribute_start)
         elements << parse_block(tokens)
       else
-        raise OrgParseError, "#{t.loc}: Line can't start with token '#{t}'"
+        raise OrgParseError, "#{t.loc}: Unknown token '#{t}'"
       end
     end
     Paragraph.new elements
+  end
+
+  def OrgParsing.parse_link tokens
+    tokens.pop_expected :left_square_brace
+    tokens.pop_expected :left_square_brace
+
+    target = parse_link_target tokens
+
+    tokens.pop_expected :right_square_brace
+    tokens.pop_expected :left_square_brace
+
+    text = parse_text tokens
+
+    tokens.pop_expected :right_square_brace
+    tokens.pop_expected :right_square_brace
+
+    Link.new target, text
   end
 
   def OrgParsing.parse_text_elements tokens
@@ -150,6 +171,8 @@ module OrgParsing
         elements << parse_special_text(tokens)
       when t.is_text?
         elements << parse_text(tokens)
+      when t.is?(:left_square_brace)
+        elements << parse_link(tokens)
       end
       tokens.pop_if { |x| x.is? :newline }
     end
@@ -298,5 +321,15 @@ end
 class String
   def to_html
     self
+  end
+end
+
+class Link
+  def initialize target, text
+    @target, @text = target, text
+  end
+
+  def to_html
+    "<a href=\"#{@target}\" target=\"_blank\">#{@text}</a>"
   end
 end

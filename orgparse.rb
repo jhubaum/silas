@@ -34,7 +34,7 @@ class OrgFile
 
     #parse preamble
     while tokens.pop_if { |t| t.is? :attribute_start } != nil
-      val = tokens.pop_expected :word
+      val = tokens.pop_expected(:word).value
       tokens.pop_expected :colon
       tokens.pop_if { |t| t.is? :whitespace }
       elems = tokens.pop_until { |t| t.is? :newline }
@@ -82,8 +82,10 @@ module OrgParsing
         end
       when :newline
         tokens.pop
+      when :attribute_start
+        elements << parse_block(tokens)
       else
-        elements << try_paragraph(tokens)
+        elements << parse_paragraph(tokens)
       end
     end
     elements
@@ -102,9 +104,6 @@ module OrgParsing
     title = tokens_to_s tokens.pop_until { |t| t.is? :newline }
     tokens.pop
     Section.new level, title, parse(tokens, :section_start)
-  end
-
-  def OrgParsing.parse_special_text tokens
   end
 
   def OrgParsing.parse_text tokens
@@ -126,20 +125,61 @@ module OrgParsing
     end
   end
 
-  def OrgParsing.try_paragraph tokens
+  def OrgParsing.parse_paragraph tokens
     elements = []
     until tokens.no_tokens? or tokens.peek.is_any? [:newline, :section_start]
+      t = tokens.peek
       case
-      when tokens.peek.is_text?
-        elements << parse_text(tokens)
-      when tokens.peek.is_special_text_delimiter?
-        elements << parse_special_text(tokens)
+      when t.is_text_element?
+        elements += parse_text_elements(tokens)
+      when t.is?(:attribute_start)
+        elements << parse_block(tokens)
       else
-        raise OrgParseError, "Unkown token '#{tokens.peek.value}' to start paragraph (#{tokens.peek.loc})"
+        raise OrgParseError, "#{t.loc}: Line can't start with token '#{t}'"
       end
-      tokens.pop_if { |t| t.is? :newline }
     end
     Paragraph.new elements
+  end
+
+  def OrgParsing.parse_text_elements tokens
+    elements = []
+    while tokens.has_tokens? and tokens.peek.is_text_element?
+      t = tokens.peek
+      case
+      when t.is_special_text_delimiter?
+        elements << parse_special_text(tokens)
+      when t.is_text?
+        elements << parse_text(tokens)
+      end
+      tokens.pop_if { |x| x.is? :newline }
+    end
+    elements
+  end
+
+  def OrgParsing.parse_block tokens
+    tokens.pop_expected :attribute_start
+    t = tokens.pop_expected :word
+    raise OrgParseError, "#{t.loc}: Expected 'BEGIN_' to start block. Found #{t.value} instead." unless t.value == "BEGIN"
+    tokens.pop_expected :underscore
+    t = tokens.pop_expected :word
+    tokens.pop_expected :newline
+
+    expected = t.value
+    case expected
+    when "COMMENT"
+      result = Comment.new parse_text_elements(tokens)
+    else
+      raise OrgParseError, "#{t.loc}: Unknown block type #{t.value}"
+    end
+
+    tokens.pop_expected :attribute_start
+    t = tokens.pop_expected :word
+    raise OrgParseError, "#{t.loc}: Expected 'END_' to end block. Found #{t.value} instead." unless t.value == "END"
+    tokens.pop_expected :underscore
+    t = tokens.pop_expected :word
+    raise OrgParseError, "#{t.loc}: Expected '#{expected}' to end block. Found #{t.value} instead." unless t.value == expected
+    tokens.pop_expected :newline
+    result
   end
 
   def OrgParsing.s_to_date s
@@ -201,6 +241,32 @@ class Paragraph
 
   def initialize elements
     @elements = elements
+  end
+
+  def to_html
+    "<p>#{@elements.map(&:to_html).join(" ")}</p>"
+  end
+end
+
+class Block
+  attr_reader :elements
+
+  def initialize elements
+    @elements = elements
+  end
+
+  def to_html
+    "<div class=\"#{class_name}\">#{@elements.map(&:to_html).join(" ")}</div>"
+  end
+end
+
+class Comment < Block
+  def initialize elements
+    super elements
+  end
+
+  def class_name
+    "comment-block"
   end
 end
 

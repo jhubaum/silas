@@ -1,9 +1,6 @@
 require "./tokenizer"
 
 class Token
-  def loc
-    "l. #{@line}:#{@loc}"
-  end
   def is? kind
     @kind == kind
   end
@@ -15,11 +12,15 @@ class Token
   def is_text?
     is_any? [:word, :whitespace, :minus, :hypen, :number, :dot, :comma,
              :question_mark, :exclamation_mark, :left_parenthesis,
-             :right_parenthesis]
+             :right_parenthesis, :single_quote]
   end
 
   def is_special_text_delimiter?
     is_any? [:asterisk, :slash]
+  end
+
+  def is_text_element?
+    is_text? or is_special_text_delimiter?
   end
 end
 

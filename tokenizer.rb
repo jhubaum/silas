@@ -50,7 +50,11 @@ class Token
   end
 
   def to_s
-    "<Token #{@kind}>"
+    "#{@kind} (#{@value})"
+  end
+
+  def loc
+    "l.#{@line}:#{@loc}"
   end
 end
 
@@ -84,9 +88,9 @@ class TokenList
 
   def pop_expected kind
     result = pop
-    raise TokenListError, "pop_expected found type #{result.kind} but expected #{kind}" unless result.is? kind
+    raise TokenListError, "#{result.loc}: found type #{result.kind} but expected #{kind}" unless result.is? kind
 
-    result.value
+    result
   end
 
   def pop_while &block
@@ -124,6 +128,9 @@ module Tokenizer
       if tokens.last.is? :newline
         line += 1
         loc = 1
+      elsif tokens.last.is? :section_start
+        line += 1
+        loc = 2
       end
       expression.delete_prefix!(tokens.last.value)
     end

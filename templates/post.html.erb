@@ -29,6 +29,8 @@
       <p><%= elem.elements.map { |e| e.to_html }.join(" ") %></p>
           <% when Section %>
           <%= elem.heading %>
+          <% when Comment %>
+          <%= elem.to_html %>
         <% end %>
         <% end %>
     </main>

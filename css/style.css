@@ -1,6 +1,7 @@
 :root {
     --font-color: #555;
     --background-color: #fff;
+    --highlight-color: #979797;
 }
 
 html {
@@ -106,4 +107,13 @@ footer .top{
 
 footer .top:hover{
     opacity: 1;
+}
+
+.comment-block {
+    color: var(--highlight-color);
+    font-style: italic;
+}
+
+.comment-block::before {
+    content: "// ";
 }

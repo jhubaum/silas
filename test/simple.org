@@ -1,5 +1,6 @@
 #+title: This is a simple org file for testing the parser
 #+draft: true
+#+published: <1917-02-25>
 
 Here is some text
 

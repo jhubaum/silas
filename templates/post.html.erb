@@ -8,15 +8,18 @@
   </head>
   <body>
     <main>
-    <h1><%= @preamble[:title] %></h1>
-    <% iterate_elements() do |elem| %>
-      <% case elem when Text %><%= elem.text %>
-        <% when Section %>
-        <%= elem.heading %>
-      <% end %>
-      <% end %>
+      <h1><%= @preamble[:title] %></h1>
+      <span id="date-published"> Published on <%= @preamble[:published].to_pretty_s %></span>
+
+      <% iterate_elements() do |elem| %>
+        <% case elem when Text %><%= elem.text %>
+          <% when Section %>
+          <%= elem.heading %>
+        <% end %>
+        <% end %>
     </main>
     <footer>
+      Link to rss feed
       If you liked what you read, consider to say Hi at <a href="mailto:hey@jhuwald.com">hey@jhuwald.com</a>.
       <hr size="0.5px" width="90%">
       <a href="#" class="top">Top</a>

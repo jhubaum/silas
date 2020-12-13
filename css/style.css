@@ -5,6 +5,16 @@ html {
     padding: 0;
 }
 
+h1 {
+    margin-bottom: 0px;
+}
+
+#date-published {
+    margin-bottom: 1.5rem;
+    display: block;
+    opacity: 0.6;
+}
+
 main,footer {
     display: block;
     margin: 0 auto;

@@ -1,5 +1,6 @@
 module Tokenizer
   private
+  # to find the proper symbol name: https://symbolnames.org/
   TOKEN_INFOS = [
     [/#\+/, :attribute_start],
     [/ /, :whitespace],
@@ -7,7 +8,11 @@ module Tokenizer
     [/:/, :colon],
     [/\n\*/, :section_start],
     [/\*/, :asterisk],
-    [/\n/, :newline]
+    [/\n/, :newline],
+    [/<\d{4}-\d{2}-\d{2}>/, :date],
+    [/-/, :minus],
+    [/</, :less_than],
+    [/>/, :greater_than]
   ]
 end
 
@@ -21,19 +26,18 @@ class TokenListError < TokenError
 end
 
 class Token
-  attr_reader :type, :value
+  attr_reader :kind, :value
 
-  def initialize type, value
-    @type, @value = type, value
+  def initialize kind, value
+    @kind, @value = kind, value
   end
 
-  def is? token_type
-    return false if token_type == nil
-    @type == token_type
+  def is? kind
+    kind == nil ? false : @kind == kind
   end
 
   def to_s
-    "<Token #{@type}>"
+    "<Token #{@kind}>"
   end
 end
 

@@ -98,6 +98,7 @@ end
 module Tokenizer
   public
   def Tokenizer.tokenize expression
+    line = 1
     tokens = []
     while expression.length > 0
       matched = false
@@ -108,7 +109,8 @@ module Tokenizer
           break
         end
       end
-      raise UnknownCharError, "Unknown char '#{expression[0]}' in expression" unless matched
+      raise UnknownCharError, "Unknown char '#{expression[0]}' in line #{line}" unless matched
+      line += 1 if tokens.last.is? :newline
       expression.delete_prefix!(tokens.last.value)
     end
     return TokenList.new tokens

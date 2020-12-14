@@ -2,16 +2,19 @@ module Tokenizer
   private
   # to find the proper symbol name: https://symbolnames.org/
   TOKEN_INFOS = [
-    [/#\+/, :attribute_start],
-    [/ /, :whitespace],
     [/[[:alpha:]]+/, :word],
+    [/ /, :whitespace],
     [/\d+/, :number],
     [/:/, :colon],
     [/;/, :semicolon],
+    [/#\+BEGIN_/, :block_start],
+    [/#\+END_/, :block_end],
+    [/#\+/, :attribute_start],
     [/\n\* /, :section_start],
     [/\*/, :asterisk],
     [/\n/, :newline],
     [/<\d{4}-\d{2}-\d{2}>/, :date],
+    [/---/, :quotee_start],
     [/-/, :minus],
     [/–/, :hypen],
     [/</, :less_than],
@@ -83,7 +86,11 @@ class TokenList
 
   def pop_if &block
     raise ArgumentError, "No block given in pop_if" unless block_given?
-    pop.value if has_tokens? and block.call peek
+    if has_tokens? and block.call peek
+      pop
+      return true
+    end
+    false
   end
 
   def pop_expected kind

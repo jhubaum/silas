@@ -14,20 +14,20 @@ class TestParsingSimple < Test::Unit::TestCase
   def test_paragraph_count
     assert_true(@file.elements[2].instance_of? Section)
 
-    text = @file.elements[2].children
+    text = @file.elements[2].elements
     assert_equal(3, text.length)
     assert_equal(2, text[0].elements.length)
     assert_equal(5, text[1].elements.length)
   end
 
   def test_blocks
-    text = @file.elements[3].children
+    text = @file.elements[3].elements
     assert_true(text[0].is_a? Block)
     assert_true(text[0].instance_of? Comment)
 
-    quote = text[1].elements[1]
-    assert_equal("Someone quoteable", quote.quotee)
-    assert_equal("I said something super smart", quote.text)
+    quote = text[2]
+    assert_equal("I said something super smart", quote.text[0])
+    assert_equal("Someone quoteable", quote.quotee[0])
   end
 
   def test_section_id

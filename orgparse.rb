@@ -33,7 +33,7 @@ class OrgFile
     tokens = Tokenizer.tokenize File.open(@name).read
 
     #parse preamble
-    while tokens.pop_if { |t| t.is? :attribute_start } != nil
+    while tokens.pop_if { |t| t.is? :attribute_start }
       val = tokens.pop_expected(:word).value
       tokens.pop_expected :colon
       tokens.pop_if { |t| t.is? :whitespace }
@@ -63,6 +63,13 @@ class OrgFile
   end
 end
 
+def print_element_tree object, indent = 0
+  puts " " * indent + object.class.to_s
+  if object.respond_to? :elements
+    object.elements.each { |e| print_element_tree e, indent+2 }
+  end
+end
+
 module OrgParsing
   def OrgParsing.parse tokens, until_token=nil
     #puts "Enter Parse (until token: #{until_token})"
@@ -82,7 +89,7 @@ module OrgParsing
         end
       when :newline
         tokens.pop
-      when :attribute_start
+      when :block_start
         elements << parse_block(tokens)
       else
         elements << parse_paragraph(tokens)
@@ -159,13 +166,11 @@ module OrgParsing
 
   def OrgParsing.parse_paragraph tokens
     elements = []
-    until tokens.no_tokens? or tokens.peek.is_any? [:newline, :section_start]
+    until tokens.no_tokens? or tokens.peek.is_any? [:newline, :section_start, :block_start]
       t = tokens.peek
       case
       when t.is_text_element?
         elements += parse_text_elements(tokens)
-      when t.is?(:attribute_start)
-        elements << parse_block(tokens)
       else
         raise OrgParseError, "#{t.loc}: Unknown token '#{t}'"
       end
@@ -208,10 +213,7 @@ module OrgParsing
   end
 
   def OrgParsing.parse_block tokens
-    tokens.pop_expected :attribute_start
-    t = tokens.pop_expected :word
-    raise OrgParseError, "#{t.loc}: Expected 'BEGIN_' to start block. Found #{t.value} instead." unless t.value == "BEGIN"
-    tokens.pop_expected :underscore
+    tokens.pop_expected :block_start
     t = tokens.pop_expected :word
     tokens.pop_expected :newline
 
@@ -220,19 +222,26 @@ module OrgParsing
     when "COMMENT"
       result = Comment.new parse_text_elements(tokens)
     when "QUOTE"
-      result = Quote.new parse_text_elements(tokens)
+      result = parse_quote_block tokens
     else
       raise OrgParseError, "#{t.loc}: Unknown block type #{t.value}"
     end
 
-    tokens.pop_expected :attribute_start
-    t = tokens.pop_expected :word
-    raise OrgParseError, "#{t.loc}: Expected 'END_' to end block. Found #{t.value} instead." unless t.value == "END"
-    tokens.pop_expected :underscore
+    tokens.pop_expected :block_end
     t = tokens.pop_expected :word
     raise OrgParseError, "#{t.loc}: Expected '#{expected}' to end block. Found #{t.value} instead." unless t.value == expected
     tokens.pop_expected :newline
     result
+  end
+
+  def OrgParsing.parse_quote_block tokens
+    text = parse_text_elements tokens
+    quotee = nil
+    if tokens.pop_if { |t| t.is? :quotee_start }
+      tokens.pop_while { |t| t.is? :whitespace }
+      quotee = parse_text_elements tokens
+    end
+    Quote.new text, quotee
   end
 
   def OrgParsing.s_to_date s
@@ -263,12 +272,12 @@ class Date
 end
 
 class Section
-  attr_reader :level, :title, :children, :id
+  attr_reader :level, :title, :elements, :id
 
-  def initialize level, title, children, properties
+  def initialize level, title, elements, properties
     @level = level
     @title = title
-    @children = children
+    @elements=elements
     if properties.key? "CUSTOM_ID"
       @id = properties["CUSTOM_ID"]
     else
@@ -277,7 +286,7 @@ class Section
   end
 
   def append element
-    @children << element
+    @elements<< element
   end
 
   def heading
@@ -285,7 +294,7 @@ class Section
   end
 
   def iterate_elements &block
-    @children.each do |elem|
+    @elements.each do |elem|
       block.call elem
       if elem.respond_to? :iterate_elements
         elem.iterate_elements { |e| block.call e }
@@ -331,12 +340,20 @@ end
 class Quote < Block
   attr_reader :text, :quotee
 
-  def initialize elements
-    super elements
+  def initialize text, quotee
+    @text = text
+    @quotee = quotee
+  end
+
+  def elements
+    @text + @quotee
   end
 
   def to_html
-    "<blockquote>#{@elements.map(&:to_html).join(" ")}</blockquote>"
+    "<blockquote>" +
+      "<p>#{@text.to_html}</p>" +
+      (@quotee == nil ? "" : "<p>– #{@quotee.to_html}<p>") +
+    "</blockquote>"
   end
 end
 
@@ -368,6 +385,12 @@ end
 class String
   def to_html
     self
+  end
+end
+
+class Array
+  def to_html
+    map(&:to_html).join(" ")
   end
 end
 

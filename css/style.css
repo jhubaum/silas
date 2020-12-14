@@ -122,5 +122,5 @@ blockquote {
     border-left: 0.25rem solid #e5e5e5;
     color: var(--highlight-color);
     margin: .8rem 0;
-    padding: .5rem 1rem;
+    padding: 0 5rem 0 1.25rem;
 }

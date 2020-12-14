@@ -1,6 +1,6 @@
 require 'fileutils'
-require './orgparse'
-require './render'
+require_relative 'org/parser'
+require_relative 'render'
 
 include SSG
 

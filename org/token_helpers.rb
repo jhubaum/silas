@@ -1,4 +1,4 @@
-require "./tokenizer"
+require_relative "tokenizer"
 
 class Token
   def is? kind

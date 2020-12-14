@@ -33,7 +33,7 @@ class OrgFile
     tokens = Tokenizer.tokenize File.open(@name).read
 
     #parse preamble
-    while tokens.pop_if { |t| t.is? :attribute_start }
+    while tokens.pop_if { |t| t.is? :preamble_start }
       val = tokens.pop_expected(:word).value
       tokens.pop_expected :colon
       tokens.pop_if { |t| t.is? :whitespace }
@@ -74,6 +74,7 @@ module OrgParsing
   def OrgParsing.parse tokens, until_token=nil
     #puts "Enter Parse (until token: #{until_token})"
     elements = []
+    attributes = []
     while tokens.has_tokens?
       token = tokens.peek
       return elements if token.is? until_token
@@ -89,6 +90,8 @@ module OrgParsing
         end
       when :newline
         tokens.pop
+      when :attribute_start
+        attributes << parse_attribute(tokens)
       when :block_start
         elements << parse_block(tokens)
       else
@@ -115,6 +118,33 @@ module OrgParsing
       properties = parse_section_properties tokens
     end
     Section.new level, title, parse(tokens, :section_start), properties
+  end
+
+  def OrgParsing.parse_attribute tokens
+    tokens.pop
+    t = tokens.pop_expected :word
+    tokens.pop_expected :colon
+    tokens.pop_while { |tok| tok.is? :whitespace }
+
+    case t.value
+    when "HTML"
+      result = parse_html_attribute tokens
+    else
+      raise OrgParseError, "#{t.loc}: Unknown attribute type #{t.value}"
+    end
+
+    tokens.pop_expected :newline
+    result
+  end
+
+  def OrgParsing.parse_html_attribute tokens
+    tokens.pop_expected :colon
+    t = tokens.pop_expected :word
+
+    raise OrgParseError, "#{t.loc}: Can only handle style in html attribute right now" unless t.value == "style"
+
+
+    HTMLStyleAttribute.new tokens_to_s(tokens.pop_until { |tok| tok.is? :newline })
   end
 
   def OrgParsing.parse_section_properties tokens
@@ -166,7 +196,8 @@ module OrgParsing
 
   def OrgParsing.parse_paragraph tokens
     elements = []
-    until tokens.no_tokens? or tokens.peek.is_any? [:newline, :section_start, :block_start]
+    # remove this until loop. Instead, loop only in the outermost function and write some logic there to merge all parsed elements
+    until tokens.no_tokens? or tokens.peek.is_paragraph_end?
       t = tokens.peek
       case
       when t.is_text_element?
@@ -401,5 +432,12 @@ class Link
 
   def to_html
     "<a href=\"#{@target}\" target=\"_blank\">#{@text}</a>"
+  end
+end
+
+class HTMLStyleAttribute
+  attr_reader :style
+  def initialize str
+    @style = str
   end
 end

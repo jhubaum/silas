@@ -21,7 +21,12 @@ After this sentence a new paragraph starts.
 However, until now the only punctuation has been a dot (which changed with this sentence). The text even contains some *bold* and /italic/ text. Have I forgotten any punctuation marks? Yes, an exclamation mark!
 
 Now, some other kinds of objects:
+
 [[https://jhuwald.com][A link]]
+
+An image with some html attributes:
+#+ATTR_HTML: :style float: right; margin: 20px
+[[/img/bumper-sticker.jpeg]]
 
 * Block tests
 #+BEGIN_COMMENT

@@ -180,13 +180,16 @@ module OrgParsing
   end
 
   def OrgParsing.parse_special_text tokens
-    delim = tokens.pop.kind
+    delim = tokens.pop
     text = parse_text tokens
     t = tokens.pop
 
-    raise OrgParseError, "Expected SpecialText delimiter #{delim} but found #{t.value}" unless t.is? delim
+    unless t.is? delim.kind
+      # parsing special text failed
+      return delim.value + text
+    end
 
-    case delim
+    case delim.kind
     when :asterisk
       SpecialText.new :bold, text
     when :slash

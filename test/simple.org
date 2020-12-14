@@ -18,7 +18,7 @@ A previous version didn't support *bold text* at the beginning of a line.
 And now I have a slightly more complicated text. It even contains a newline.
 After this sentence a new paragraph starts.
 
-However, until now the only punctuation has been a dot (which changed with this sentence). The text even contains some *bold* and /italic/ text. Have I forgotten any punctuation marks? Yes, an exclamation mark!
+However, until now the only punctuation has been a dot (which changed with this sentence). The text even contains some *bold* and /italic/ text. Have I forgotten any punctuation marks? Yes, an exclamation mark! I can even use a slash/however you want to call this character.
 
 Now, some other kinds of objects:
 

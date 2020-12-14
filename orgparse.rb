@@ -216,11 +216,13 @@ module OrgParsing
     target = parse_link_target tokens
 
     tokens.pop_expected :right_square_brace
-    tokens.pop_expected :left_square_brace
 
-    text = parse_text tokens
+    text = nil
+    if tokens.pop_if { |t| t.is? :left_square_brace }
+      text = parse_text tokens
+      tokens.pop_expected :right_square_brace
+    end
 
-    tokens.pop_expected :right_square_brace
     tokens.pop_expected :right_square_brace
 
     Link.new target, text
@@ -431,7 +433,7 @@ class Link
   end
 
   def to_html
-    "<a href=\"#{@target}\" target=\"_blank\">#{@text}</a>"
+    "<a href=\"#{@target}\" target=\"_blank\">#{@text == nil ? @target : @text}</a>"
   end
 end
 

@@ -15,7 +15,7 @@ class TestParsingSimple < Test::Unit::TestCase
     assert_true(@file.elements[2].instance_of? Section)
 
     text = @file.elements[2].elements
-    assert_equal(3, text.length)
+    assert_equal(6, text.length)
     assert_equal(2, text[0].elements.length)
     assert_equal(5, text[1].elements.length)
   end

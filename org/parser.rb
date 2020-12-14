@@ -2,6 +2,40 @@ require_relative 'types'
 require_relative 'tokenizer'
 require_relative 'token_helpers'
 
+class OrgParser
+  attr_reader :preamble, :elements
+
+  def OrgParser.parse_file filename
+    raise OrgReadFileError, "file '#{filename}' does not exist" unless File.file? filename
+
+    parser = OrgParser.new File.open(filename).read
+    OrgFile.new parser.preamble, parser.elements
+  end
+
+  def OrgParser.parse_expression expression
+    parser = OrgParser.new expression
+
+    parser.preamble ?
+      [parser.preamble] + parser.elements :
+      parser.elements
+  end
+
+  def initialize expression
+    @tokens = Tokenizer.tokenize expression
+    @saved_tokens = []
+  end
+
+private
+  def checkpoint
+  end
+
+  def use_checkpoint
+  end
+
+  def next
+  end
+end
+
 module OrgParsing
   def OrgParsing.parse tokens, until_token=nil
     #puts "Enter Parse (until token: #{until_token})"

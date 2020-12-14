@@ -176,7 +176,7 @@ module OrgParsing
   end
 
   def OrgParsing.parse_link_target tokens
-    tokens_to_s tokens.pop_while { |t| t.is_text? or t.is? :slash }
+    tokens_to_s tokens.pop_until { |t| t.is? :right_square_brace }
   end
 
   def OrgParsing.parse_special_text tokens
@@ -211,16 +211,20 @@ module OrgParsing
 
   def OrgParsing.parse_link tokens
     tokens.pop_expected :left_square_brace
-    tokens.pop_expected :left_square_brace
+
+    unless tokens.peek.is? :left_square_brace
+      # this isn't a link; parse text instead.
+      return "[" + parse_text(tokens)
+    end
+    tokens.pop
 
     target = parse_link_target tokens
-
     tokens.pop_expected :right_square_brace
 
     text = nil
     if tokens.pop_if { |t| t.is? :left_square_brace }
-      text = parse_text tokens
-      tokens.pop_expected :right_square_brace
+      text = tokens_to_s(tokens.pop_until { |t| t.is? :right_square_brace })
+      tokens.pop
     end
 
     tokens.pop_expected :right_square_brace

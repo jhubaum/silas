@@ -10,10 +10,11 @@ class Token
   end
 
   def is_text?
+    # :left_square_brace isn't text because this conflicts with parsing links right now
     is_any? [:word, :whitespace, :minus, :hypen, :number, :dot, :comma,
              :question_mark, :exclamation_mark, :left_parenthesis,
              :right_parenthesis, :single_quote, :colon, :semicolon,
-             :quotation_mark]
+             :quotation_mark, :right_square_brace]
   end
 
   def is_special_text_delimiter?

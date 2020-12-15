@@ -1,9 +1,9 @@
-require "./orgparse.rb"
+require_relative "../org/parser.rb"
 require "test/unit"
 
 class TestParsingSimple < Test::Unit::TestCase
   def setup
-    @file = OrgFile.new "test/simple.org"
+    @file = OrgParser.parse_file "test/simple.org"
   end
 
   def test_preamble

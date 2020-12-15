@@ -11,7 +11,7 @@ module SSG
                                 ["https://jhuwald.com/blog/", "Blog"],
                                 ["https://jhuwald.com/projects/", "Projects"],
                                 ["https://jhuwald.com/stories/", "Stories"]
-                              ])
+                              ]) { file.to_html}
     end
   end
 end

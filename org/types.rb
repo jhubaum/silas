@@ -20,34 +20,12 @@ class OrgDirectory
 end
 
 class OrgFile
+  private_class_method :new
   attr_reader :preamble, :elements
 
-  def initialize dirname=nil, file_name
-    @name = (dirname == nil) ? file_name : File.join(dirname, file_name)
-    raise OrgReadFileError, "file '#{@name}' does not exist" unless File.file? @name
 
-    @preamble = { }
-    tokens = Tokenizer.tokenize File.open(@name).read
-
-    #parse preamble
-    while tokens.pop_if { |t| t.is? :preamble_start }
-      val = tokens.pop_expected(:word).value
-      tokens.pop_expected :colon
-      tokens.pop_if { |t| t.is? :whitespace }
-      elems = tokens.pop_until { |t| t.is? :newline }
-      @preamble[val.to_sym] = tokens_to_s elems
-
-      # remove newline
-      tokens.pop
-    end
-
-    @preamble[:published] = OrgParsing.s_to_date @preamble[:published]
-
-    tokens.pop_while { |t| t.is? :newline }
-
-    #puts "Finished preamble (#{preamble.keys})"
-
-    @elements = OrgParsing.parse tokens
+  def initialize preamble, elements
+    @preamble, @elements = preamble, elements
   end
 
   def iterate_elements &block
@@ -69,6 +47,10 @@ end
 
 
 class Date
+  def Date.from_s s
+    /<(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})>/ =~ s
+    Date.new y, m, d
+  end
   def initialize year, month, day
     @year = year.to_i
     @month = month.to_i
@@ -94,7 +76,7 @@ class Section
   def initialize level, title, elements, properties
     @level = level
     @title = title
-    @elements=elements
+    @elements = elements
     if properties.key? "CUSTOM_ID"
       @id = properties["CUSTOM_ID"]
     else
@@ -155,20 +137,16 @@ class Comment < Block
 end
 
 class Quote < Block
-  attr_reader :text, :quotee
+  attr_reader :quotee
 
-  def initialize text, quotee
-    @text = text
+  def initialize elements, quotee
+    super elements
     @quotee = quotee
-  end
-
-  def elements
-    @text + @quotee
   end
 
   def to_html
     "<blockquote>" +
-      "<p>#{@text.to_html}</p>" +
+      "<p>#{@elements.to_html}</p>" +
       (@quotee == nil ? "" : "<p>– #{@quotee.to_html}<p>") +
     "</blockquote>"
   end
@@ -185,6 +163,10 @@ class SpecialText
 
   def text= text
     @text
+  end
+
+  def to_s
+    return @text
   end
 
   def to_html
@@ -212,12 +194,23 @@ class Array
 end
 
 class Link
+  attr_accessor :attributes, :target
+
   def initialize target, text
     @target, @text = target, text
+    @attributes = []
+  end
+
+  def to_s
+    @text == nil ? @target : @text
   end
 
   def to_html
-    "<a href=\"#{@target}\" target=\"_blank\">#{@text == nil ? @target : @text}</a>"
+    if @attributes.length > 0
+      "<a href=\"#{@target}\" target=\"_blank\" style=\"#{@attributes[0].style}\">#{@text == nil ? @target : @text}</a>"
+    else
+      "<a href=\"#{@target}\" target=\"_blank\">#{@text == nil ? @target : @text}</a>"
+    end
   end
 end
 

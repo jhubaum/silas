@@ -11,7 +11,7 @@ module Tokenizer
     [/#\+END_/, :block_end],
     [/#\+ATTR_/, :attribute_start],
     [/#\+/, :preamble_start],
-    [/\n\* /, :section_start],
+    [/\n\*+ /, :section_start],
     [/\*/, :asterisk],
     [/\n/, :newline],
     [/<\d{4}-\d{2}-\d{2}>/, :date],
@@ -65,6 +65,7 @@ end
 class TokenList
   def initialize tokens
     @tokens = tokens
+    @checkpoint = [ ]
   end
 
   def has_tokens?
@@ -80,9 +81,22 @@ class TokenList
   end
 
   def pop
-    result = @tokens[0]
-    @tokens = @tokens[1..-1]
+    result = @tokens.shift
+    @checkpoint << result
+    if result.is? :attribute_start
+      puts result.loc
+      puts Thread.current.backtrace.join("\n")
+      puts "----"
+    end
     result
+  end
+
+  def start_checkpoint
+    @checkpoint.clear
+  end
+
+  def use_checkpoint_as_s
+    @checkpoint.map(&:value).join("")
   end
 
   def pop_if &block
@@ -95,8 +109,16 @@ class TokenList
   end
 
   def pop_expected kind
-    result = pop
-    raise TokenListError, "#{result.loc}: found type #{result.kind} but expected #{kind}" unless result.is? kind
+    if kind.instance_of? Array
+      result = []
+      kind.each do |k|
+        result << pop
+        raise TokenListError, "#{result.last.loc}: found type #{result.last.kind} but expected #{k}" unless k == nil or result.last.is? k
+      end
+    else
+      result = pop
+      raise TokenListError, "#{result.loc}: found type #{result.kind} but expected #{kind}" unless result.is? kind
+    end
 
     result
   end

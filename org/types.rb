@@ -36,6 +36,10 @@ class OrgFile
       end
     end
   end
+
+  def to_html
+    @elements.map(&:to_html).join("")
+  end
 end
 
 def print_element_tree object, indent = 0
@@ -84,21 +88,12 @@ class Section
     end
   end
 
-  def append element
-    @elements<< element
-  end
-
   def heading
     "<h#{@level+2} id=\"#{@id}\">#{@title}</h#{@level+2}>"
   end
 
-  def iterate_elements &block
-    @elements.each do |elem|
-      block.call elem
-      if elem.respond_to? :iterate_elements
-        elem.iterate_elements { |e| block.call e }
-      end
-    end
+  def to_html
+    heading + @elements.map(&:to_html).join("")
   end
 end
 
@@ -184,6 +179,10 @@ end
 class String
   def to_html
     self
+  end
+
+  def titlecase
+    self[0].upcase + self[1..-1].downcase
   end
 end
 

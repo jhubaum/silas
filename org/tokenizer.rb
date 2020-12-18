@@ -7,6 +7,7 @@ module Tokenizer
     [/\d+/, :number],
     [/:/, :colon],
     [/;/, :semicolon],
+    [/@/, :at],
     [/#\+BEGIN_/, :block_start],
     [/#\+END_/, :block_end],
     [/#\+ATTR_/, :attribute_start],
@@ -81,14 +82,7 @@ class TokenList
   end
 
   def pop
-    result = @tokens.shift
-    @checkpoint << result
-    if result.is? :attribute_start
-      puts result.loc
-      puts Thread.current.backtrace.join("\n")
-      puts "----"
-    end
-    result
+    (@checkpoint << @tokens.shift).last
   end
 
   def start_checkpoint

@@ -67,6 +67,7 @@ class OrgParser
       parse_section
     when :attribute_start
       @attributes << parse_attribute
+      nil
     when :block_start
       parse_block
     else

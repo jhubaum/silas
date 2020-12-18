@@ -1,0 +1,15 @@
+<main>
+  <h1><%= @preamble[:title] %></h1>
+  <% if @preamble.key? :published %>
+    <span id="date-published"> Published on <%= @preamble[:published].to_pretty_s %></span>
+  <% end %>
+
+  <%= yield %>
+
+</main>
+<footer>
+  Link to rss feed
+  If you liked what you read, consider to say Hi at <a href="mailto:hey@jhuwald.com">hey@jhuwald.com</a>.
+  <hr size="0.5px" width="90%">
+  <a href="#" class="top">Top</a>
+</footer>

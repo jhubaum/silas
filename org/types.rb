@@ -38,7 +38,7 @@ class OrgFile
   end
 
   def to_html
-    @elements.map(&:to_html).join("")
+    @elements.map(&:to_html).join("\n")
   end
 end
 
@@ -93,7 +93,7 @@ class Section
   end
 
   def to_html
-    heading + @elements.map(&:to_html).join("")
+    heading + "\n" + @elements.map(&:to_html).join("\n")
   end
 end
 
@@ -105,7 +105,7 @@ class Paragraph
   end
 
   def to_html
-    "<p>#{@elements.map(&:to_html).join(" ")}</p>"
+    "<p>#{@elements.map(&:to_html).join("")}</p>"
   end
 end
 
@@ -117,7 +117,7 @@ class Block
   end
 
   def to_html
-    "<div class=\"#{class_name}\">#{@elements.map(&:to_html).join(" ")}</div>"
+    "<div class=\"#{class_name}\">#{@elements.map(&:to_html).join("")}</div>"
   end
 end
 

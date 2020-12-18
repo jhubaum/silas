@@ -19,13 +19,24 @@ class WebsiteBuilder
   end
 
   def generate path
+    r = Renderer.new "https://jhuwald.com"
+    @pages.each do |sym, file|
+      puts "Render #{sym}"
+      p = "#{path}/#{sym}"
+      Dir.mkdir p
+      File.open(p + "/index.html", "w+") do |f|
+        f.write r.post(file)
+      #render_post file, "#{path}/#{sym}"
+      end
+    end
   end
 
   private
   def add_page path
     return if path == "ideas"
+
     puts "Add page #{path}"
-    @pages[path.to_sym] = path
+    @pages[path.to_sym] = OrgParser.parse_file "#{@path}/#{path}.org"
   end
 
   def add_project path

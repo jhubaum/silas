@@ -1,4 +1,4 @@
-require_relative 'types'
+require_relative 'project'
 
 require_relative '../org/parser'
 
@@ -18,15 +18,23 @@ class WebsiteBuilder
     end
   end
 
+  def header
+    [
+      Link.new(@pages[:about], "About"),
+      @projects[:blog].create_link,
+      @projects[:writing_fiction].create_link
+    ]
+  end
+
   def generate path
-    r = Renderer.new "https://jhuwald.com"
-    @pages.each do |sym, file|
-      puts "Render #{sym}"
-      p = "#{path}/#{sym}"
-      Dir.mkdir p
-      File.open(p + "/index.html", "w+") do |f|
-        f.write r.post(file)
-      #render_post file, "#{path}/#{sym}"
+    r = Renderer.new self
+    @pages.each { |sym, file| r.page file, "#{path}/#{sym}" }
+    @projects.values.each do |proj|
+      p = proj.url(path)
+      r.page proj.index, p
+
+      proj.files.each do |name, file|
+        r.post file, "#{p}/#{name}"
       end
     end
   end
@@ -34,13 +42,10 @@ class WebsiteBuilder
   private
   def add_page path
     return if path == "ideas"
-
-    puts "Add page #{path}"
     @pages[path.to_sym] = OrgParser.parse_file "#{@path}/#{path}.org"
   end
 
   def add_project path
-    puts "Add project #{path}"
     @projects[path.to_sym] = Project.new @path, path
   end
 end

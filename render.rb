@@ -18,16 +18,58 @@ module SSG
 end
 
 class Renderer
-  def initialize website_name
-    @name = website_name
-    @layout = Tilt.new("theme/layout.html.erb")
-    @post = Tilt.new("theme/post.html.erb")
-    #@page = Tilt.new("theme/page.html.erb")
+  class Context
+    def initialize file
+      @title = file.preamble[:title]
+      @published = file.preamble[:published]
+      @last_edit = file.preamble[:lastedit]
+    end
+
+    def published?
+      @published != nil
+    end
+
+    def last_edit?
+      @last_edit != nil
+    end
+
+    def resolve_link_target target
+      return nil if target == nil
+
+      case target
+      when OrgFile
+        "This is a link to a file"
+      when String
+        target
+      else
+        raise "Don't know how to interpret target of type #{target.class}"
+      end
+    end
   end
 
-  def post file
-    @layout.render(file, :pages => []) do
-      @post.render(file) { file.to_html }
+  def initialize builder
+    @builder = builder
+    @layout = Tilt.new("theme/layout.html.erb")
+    @post = Tilt.new("theme/post.html.erb")
+    @page = Tilt.new("theme/page.html.erb")
+  end
+
+  def post file, path
+    render @post, file, path
+  end
+
+  def page file, path
+    render @page, file, path
+  end
+
+  private
+  def render template, file, path
+    c = Context.new file
+    Dir.mkdir path
+    File.open(path + "/index.html", "w+") do |f|
+      f.write (@layout.render(c, :header => @builder.header) do
+                 template.render(c) { file.to_html c}
+               end)
     end
   end
 end

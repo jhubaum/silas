@@ -37,8 +37,8 @@ class OrgFile
     end
   end
 
-  def to_html
-    @elements.map(&:to_html).join("\n")
+  def to_html context
+    @elements.to_html context, "\n"
   end
 end
 
@@ -92,8 +92,8 @@ class Section
     "<h#{@level+2} id=\"#{@id}\">#{@title}</h#{@level+2}>"
   end
 
-  def to_html
-    heading + "\n" + @elements.map(&:to_html).join("\n")
+  def to_html context
+    heading + "\n" + @elements.to_html(context, "\n")
   end
 end
 
@@ -104,8 +104,8 @@ class Paragraph
     @elements = elements
   end
 
-  def to_html
-    "<p>#{@elements.map(&:to_html).join("")}</p>"
+  def to_html context
+    "<p>#{@elements.to_html context}</p>"
   end
 end
 
@@ -116,8 +116,8 @@ class Block
     @elements = elements
   end
 
-  def to_html
-    "<div class=\"#{class_name}\">#{@elements.map(&:to_html).join("")}</div>"
+  def to_html context
+    "<div class=\"#{class_name}\">#{@elements.to_html context}</div>"
   end
 end
 
@@ -139,10 +139,10 @@ class Quote < Block
     @quotee = quotee
   end
 
-  def to_html
+  def to_html context
     "<blockquote>" +
-      "<p>#{@elements.to_html}</p>" +
-      (@quotee == nil ? "" : "<p>– #{@quotee.to_html}<p>") +
+      "<p>#{@elements.to_html context}</p>" +
+      (@quotee == nil ? "" : "<p>– #{@quotee.to_html context}<p>") +
     "</blockquote>"
   end
 end
@@ -164,7 +164,7 @@ class SpecialText
     return @text
   end
 
-  def to_html
+  def to_html context
     case @kind
     when :bold
       "<b>#{text}</b>"
@@ -177,7 +177,7 @@ class SpecialText
 end
 
 class String
-  def to_html
+  def to_html context
     self
   end
 
@@ -187,13 +187,13 @@ class String
 end
 
 class Array
-  def to_html
-    map(&:to_html).join(" ")
+  def to_html context, div=""
+    map { |e| e.to_html context }.join(div)
   end
 end
 
 class Link
-  attr_accessor :attributes, :target
+  attr_accessor :attributes, :target, :text
 
   def initialize target, text
     @target, @text = target, text
@@ -204,12 +204,12 @@ class Link
     @text == nil ? @target : @text
   end
 
-  def to_html
-    if @attributes.length > 0
-      "<a href=\"#{@target}\" target=\"_blank\" style=\"#{@attributes[0].style}\">#{@text == nil ? @target : @text}</a>"
-    else
-      "<a href=\"#{@target}\" target=\"_blank\">#{@text == nil ? @target : @text}</a>"
-    end
+  def to_html context
+    target = context.resolve_link_target @target
+    text = @text == nil ? target : @text
+    style = @attributes.length > 0 ? "style=\"#{@attributes[0].style}\"" : ""
+
+    "<a href=\"#{target}\" target=\"_blank\" #{style}>#{text}</a>"
   end
 end
 

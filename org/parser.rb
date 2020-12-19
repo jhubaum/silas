@@ -45,8 +45,9 @@ class OrgParser
       preamble[val.to_sym] = tokens_to_s elems
     end
 
-    if preamble.key? :published
-      preamble[:published] = Date.from_s preamble[:published]
+    # convert dates
+    [:published, :lastedit].each do |k|
+      preamble[k] = Date.from_s preamble[k] if preamble.key? k
     end
 
     preamble
@@ -198,7 +199,7 @@ class OrgParser
       @tokens.start_checkpoint
       begin
         new = parse_text_element
-      rescue OrgParseError => error
+      rescue OrgParseError, TokenListError => error
         puts "Warning: #{error}"
         new = @tokens.use_checkpoint_as_s
       ensure

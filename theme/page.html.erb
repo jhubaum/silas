@@ -1,0 +1,11 @@
+<main>
+  <h1><%= @title %></h1>
+  <%= yield %>
+</main>
+<footer>
+  <% if last_edit? %>
+  <span>Last edited: <%= @last_edit.to_pretty_s %></span>
+  <% end %>
+  <hr size="0.5px" width="90%">
+  <a href="#" class="top">Top</a>
+</footer>

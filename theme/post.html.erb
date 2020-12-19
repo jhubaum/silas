@@ -1,7 +1,7 @@
 <main>
-  <h1><%= @preamble[:title] %></h1>
-  <% if @preamble.key? :published %>
-    <span id="date-published"> Published on <%= @preamble[:published].to_pretty_s %></span>
+  <h1><%= @title %></h1>
+  <% if published? %>
+    <span id="date-published"> Published on <%= @published.to_pretty_s %></span>
   <% end %>
 
   <%= yield %>

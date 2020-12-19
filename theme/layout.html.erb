@@ -4,7 +4,7 @@
   <head>
     <meta charset="utf-8">
     <link href="../css/style.css"  rel="stylesheet" type="text/css">
-    <title>Johannes Huwald ~ <%= @preamble[:title] %></title>
+    <title>Johannes Huwald ~ <%= @title %></title>
   </head>
   <body>
     <nav class="nav">
@@ -13,8 +13,8 @@
           <h2>Johannes Huwald</h2>
         </a>
         <ul>
-          <% pages.each do |page| %>
-            <li><a href="<%= page[0] %>"><%= page[1] %></a></li>
+          <% header.each do |link| %>
+          <li><%= link.to_html self %></li>
           <% end %>
         </ul>
       </div>

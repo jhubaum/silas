@@ -1,14 +1,19 @@
 class Project
   attr_reader :index, :files
 
-  def initialize path, dirname
-    @name = dirname.titlecase
-    @url = dirname
-    @index, @files = load_files path+dirname
+  def initialize orgdir
+    @orgdir = orgdir
+    @index, @files = load_files
+
+    raise "project #{name} doesn't have an index file" if @index == nil
+  end
+
+  def name
+    @orgdir.name.titlecase
   end
 
   def url path
-    "#{path}/#{@url}"
+    "#{path}/#{@orgdir.name.snakecase}"
   end
 
   def create_link
@@ -16,22 +21,16 @@ class Project
   end
 
   private
-  def load_files path
+  def load_files
     files = { }
     index = nil
-    Dir.glob("#{path}/*").each do |f|
-      puts "#{f}"
-      raise "No subfolders allowed" unless File.file? f
-      name = f.split("/").last.split(".")
-      if name.last != "org"
-        puts "Warning: Only org-files allowed. Ignoring #{f}"
-      else
-        name = name.first
-        parsed = OrgParser.parse_file f
-
-        index = parsed if name == "index"
-        raise "Duplicate filename #{name}" if files.key? name
-        files[name] = parsed
+    @orgdir.all_files do |filename, file|
+      if filename == "index"
+        raise "project #{name} redefines index in subdir" unless index == nil
+        index = file
+      elsif name != "ideas"
+        raise "duplicate filename '#{filename}' in project #{name}" if files.key? filename
+        files[filename] = file
       end
     end
     return index, files

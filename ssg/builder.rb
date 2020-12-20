@@ -1,20 +1,21 @@
 require_relative 'project'
+require_relative 'renderer'
 
 require_relative '../org/parser'
 
 class WebsiteBuilder
   def initialize path
-    @path = path
-    @pages = { }
-    @projects = { }
+    @orgdir = OrgDirectory.new path
 
-    Dir.glob("#{path}/*").each do |f|
-      name = f.split("/").last
-      if File.file? f
-        add_page name.split(".").first
-      else
-        add_project name
-      end
+    @pages = {}
+    @projects = {}
+
+    @orgdir.files.each do |name, file|
+      @pages[name.snakecase.to_sym] = file unless name == "ideas"
+    end
+
+    @orgdir.directories.each do  |name, dir|
+      @projects[name.snakecase.to_sym] = Project.new dir
     end
   end
 
@@ -39,13 +40,14 @@ class WebsiteBuilder
     end
   end
 
-  private
-  def add_page path
-    return if path == "ideas"
-    @pages[path.to_sym] = OrgParser.parse_file "#{@path}/#{path}.org"
-  end
-
-  def add_project path
-    @projects[path.to_sym] = Project.new @path, path
+  def resolve_link target
+    case target
+    when OrgFile
+      "This is a link to a file"
+    when String
+      target
+    else
+      raise "Don't know how to interpret target of type #{target.class}"
+    end
   end
 end

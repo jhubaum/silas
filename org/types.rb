@@ -8,14 +8,37 @@ class InvalidTokenError < OrgParseError
 end
 
 class OrgDirectory
-  def initialize dirname
-    @name = dirname
-    @files = []
-    raise OrgReadFileError, "Path given for OrgDirectory is no directory" unless Dir.exist? @name
+  attr_reader :files, :directories, :name, :path
 
-    @files = Dir.glob("**/*.org", base: @name).map { |f| OrgFile.new @name, f }
+  def initialize path, subfolder=nil
+    raise OrgReadFileError, "Path given for OrgDirectory is no directory" unless Dir.exist? path
 
-    @files.each { |f| puts f.path }
+    if subfolder == nil
+      @path = path
+      @name = path.split("/").last
+    else
+      @path = path + "/" + subfolder
+      @name = subfolder
+    end
+
+    @files = { }
+    @directories = { }
+
+    Dir.glob("#{@path}/*") do |f|
+      name = f.split("/").last
+      if File.file? f
+        @files[name.split(".").first] = OrgParser.parse_file f
+      else
+        @directories[name] = OrgDirectory.new path, name
+      end
+    end
+  end
+
+  def all_files
+    @files.each { |name, file| yield name, file }
+    @directories.each do |d|
+      d.all_files { |name, file| yield name, file }
+    end
   end
 end
 
@@ -183,6 +206,10 @@ class String
 
   def titlecase
     self[0].upcase + self[1..-1].downcase
+  end
+
+  def snakecase
+    downcase.gsub(/[ -]/, "_")
   end
 end
 

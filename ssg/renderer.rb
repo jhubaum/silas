@@ -1,25 +1,10 @@
 require 'erb'
 require 'tilt'
 
-module SSG
-  def render_post file, path
-    template = Tilt.new('theme/post.html.erb')
-    Dir.mkdir path
-    File.open(path + "/index.html", "w+") do |f|
-      f.write template.render(file,
-                              :pages => [
-                                ["https://jhuwald.com/about/", "About"],
-                                ["https://jhuwald.com/blog/", "Blog"],
-                                ["https://jhuwald.com/projects/", "Projects"],
-                                ["https://jhuwald.com/stories/", "Stories"]
-                              ]) { file.to_html}
-    end
-  end
-end
-
 class Renderer
   class Context
-    def initialize file
+    def initialize renderer, file
+      @renderer = renderer
       @title = file.preamble[:title]
       @published = file.preamble[:published]
       @last_edit = file.preamble[:lastedit]
@@ -35,17 +20,11 @@ class Renderer
 
     def resolve_link_target target
       return nil if target == nil
-
-      case target
-      when OrgFile
-        "This is a link to a file"
-      when String
-        target
-      else
-        raise "Don't know how to interpret target of type #{target.class}"
-      end
+      @renderer.builder.resolve_link target
     end
   end
+
+  attr_reader :builder
 
   def initialize builder
     @builder = builder
@@ -64,7 +43,7 @@ class Renderer
 
   private
   def render template, file, path
-    c = Context.new file
+    c = Context.new self, file
     Dir.mkdir path
     File.open(path + "/index.html", "w+") do |f|
       f.write (@layout.render(c, :header => @builder.header) do

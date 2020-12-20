@@ -1,9 +1,6 @@
 require 'fileutils'
 require_relative 'org/parser'
 require_relative 'ssg/builder'
-require_relative 'render'
-
-include SSG
 
 WEBSITE_INPUT_DIRECTORY = "/home/johannes/gtd/website/"
 OUTPUT_FOLDER_NAME = "generated"

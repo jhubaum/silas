@@ -34,8 +34,11 @@ This is a comment block with some content.
 Again, it has multiple lines. Isn't that fun? I don't think so...
 #+END_COMMENT
 
-And here is a quote:
+And here is a quote, followed by a list:
 #+BEGIN_QUOTE
 I said something super smart
 --- Someone quoteable
 #+END_QUOTE
+- This is an unordered list
+- It has three entries
+- This is the last one

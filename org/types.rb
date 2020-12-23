@@ -301,17 +301,23 @@ class HTMLStyleAttribute
 end
 
 class List < OrgTextObject
-  class Type
-    def initialize type
-      @type = type
-    end
-
-    def tag
-      @type == :unordered ? "ul" : "ol"
-    end
-  end
-
   def initialize file, type, entries
     super file
+    @type = type
+    @entries = entries
+  end
+
+  def elements
+    @entries
+  end
+
+  def to_html context
+    list = @entries.to_html context, "</li><li>"
+    "<#{tag}><li>#{list}</li></#{tag}>"
+  end
+
+  private
+  def tag
+    @type == :minus ? "ul" : "ol"
   end
 end

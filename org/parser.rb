@@ -72,6 +72,8 @@ class OrgParser
       nil
     when :block_start
       parse_block
+    when :plus, :minus
+      parse_list
     else
       elems = []
       until @tokens.no_tokens? or @tokens.peek.is_paragraph_end?
@@ -194,6 +196,31 @@ class OrgParser
     end
 
     Quote.new @file, elements, quotee
+  end
+
+  def parse_list
+    type = parse_list_type
+
+    entries = [parse_list_entry]
+
+    while @tokens.has_tokens? and @tokens.peek.kind == type
+      @tokens.pop
+      @tokens.pop_expected :whitespace
+
+      entries << parse_list_entry
+    end
+
+    List.new @file, type, entries
+  end
+
+  def parse_list_type
+    tok = @tokens.pop
+    @tokens.pop_expected :whitespace
+    tok.kind
+  end
+
+  def parse_list_entry
+    parse_text_line
   end
 
   def parse_text_line

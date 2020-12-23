@@ -34,4 +34,10 @@ class TestParsingSimple < Test::Unit::TestCase
     assert_equal("first", @file.elements[1].id)
     assert_equal("and-another-top-level-section", @file.elements[2].id)
   end
+
+  def test_lists
+    ul = @file.elements[3].elements[3]
+    assert_true(ul.instance_of? List)
+    assert_equal(ul.elements.length, 3)
+  end
 end

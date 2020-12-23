@@ -257,7 +257,7 @@ class Dir
 end
 
 class Array
-  def to_html context, div=""
+  def to_html context, div=" "
     map { |e| e.to_html context }.join(div)
   end
 
@@ -300,6 +300,40 @@ class HTMLStyleAttribute
   end
 end
 
+module ListType
+  class Ordered
+    def tag
+      "ol"
+    end
+
+    def is_next_entry tok, count
+      tok.value.to_i == count + 1
+    end
+
+    def indentation
+      3
+    end
+  end
+
+  class Unordered
+    def initialize kind
+      @kind = kind
+    end
+
+    def tag
+      "ul"
+    end
+
+    def is_next_entry tok, count
+      tok.is? @kind
+    end
+
+    def indentation
+      2
+    end
+  end
+end
+
 class List < OrgTextObject
   def initialize file, type, entries
     super file
@@ -313,11 +347,6 @@ class List < OrgTextObject
 
   def to_html context
     list = @entries.to_html context, "</li><li>"
-    "<#{tag}><li>#{list}</li></#{tag}>"
-  end
-
-  private
-  def tag
-    @type == :minus ? "ul" : "ol"
+    "<#{@type.tag}><li>#{list}</li></#{@type.tag}>"
   end
 end

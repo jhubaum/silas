@@ -72,7 +72,7 @@ class OrgParser
       nil
     when :block_start
       parse_block
-    when :plus, :minus
+    when :plus, :minus, :number
       parse_list
     else
       elems = []
@@ -198,29 +198,63 @@ class OrgParser
     Quote.new @file, elements, quotee
   end
 
-  def parse_list
+  def parse_list indentation=0
     type = parse_list_type
-
-    entries = [parse_list_entry]
-
-    while @tokens.has_tokens? and @tokens.peek.kind == type
-      @tokens.pop
-      @tokens.pop_expected :whitespace
-
-      entries << parse_list_entry
+    entries = []
+    loop do
+      entries << parse_list_entry(indentation + type.indentation)
+      break if @tokens.no_tokens? or list_is_finished type, entries.length
     end
-
     List.new @file, type, entries
   end
 
   def parse_list_type
     tok = @tokens.pop
-    @tokens.pop_expected :whitespace
-    tok.kind
+    case tok.kind
+    when :minus, :plus
+      @tokens.pop_expected :whitespace
+      ListType::Unordered.new tok.kind
+    when :number
+      raise "#{tok.loc}: ordered list didn't start with `1`. Probably a parsing error" unless tok.value.to_i == 1
+      @tokens.pop_expected [:dot, :whitespace]
+      ListType::Ordered.new
+    else
+      raise "#{tok.loc}: Unknown char for list start"
+    end
   end
 
-  def parse_list_entry
-    parse_text_line
+  def parse_list_entry indentation
+    elements = [parse_text_line]
+    while parse_indentation(indentation) and @tokens.has_tokens?
+      if @tokens.peek.is_list_start?
+        elements << parse_list(indentation)
+      else
+        elements << parse_text_line
+      end
+    end
+    elements
+  end
+
+  def parse_indentation indentation
+    @tokens.start_checkpoint
+    begin
+      @tokens.pop_expected [:whitespace]*indentation
+    rescue TokenListError
+      @tokens.revert_checkpoint
+      false
+    else
+      true
+    end
+  end
+
+  def list_is_finished type, count
+    if type.is_next_entry @tokens.peek, count
+      @tokens.pop
+      @tokens.pop_while { |t| t.is_any? [:whitespace, :dot] }
+      return false
+    else
+      return true
+    end
   end
 
   def parse_text_line

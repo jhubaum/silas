@@ -42,3 +42,15 @@ I said something super smart
 - This is an unordered list
 - It has three entries
 - This is the last one
+
+Here now, is a more complicated list
+1. This is an ordered list
+2. It's elements are here to test some corner cases.
+   For example, this entry has more than one line of text
+3. Other elements have a nested list
+   - This element here, for example
+   - A second element for the nested list
+     - A third level of indentation doesn't break the parser
+4. Here, the parent list continues
+   1. But it has a nested ordered list
+5. This is the final element for the outermost list

@@ -84,6 +84,7 @@ class TokenList
   end
 
   def pop
+    raise TokenListError, "Tried pop in emtpy TokenList" unless has_tokens?
     (@checkpoint << @tokens.shift).last
   end
 
@@ -93,6 +94,10 @@ class TokenList
 
   def use_checkpoint_as_s
     @checkpoint.map(&:value).join("")
+  end
+
+  def revert_checkpoint
+    @tokens = @checkpoint + @tokens
   end
 
   def pop_if &block

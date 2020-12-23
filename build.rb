@@ -12,9 +12,9 @@ Dir.mkdir OUTPUT_FOLDER_NAME
 FileUtils.cp_r("theme/css", OUTPUT_FOLDER_NAME + "/css")
 
 if ARGV[0] == "debug"
-  f = OrgParser.parse_file "test/simple.org"
-  print_element_tree f
-  render_post f, OUTPUT_FOLDER_NAME
+  org = OrgFile.new "test/simple.org", nil
+  print_element_tree org
+  File.open("test.html", "w+") { |f| f.write org.to_html nil }
 else
   website = WebsiteBuilder.new WEBSITE_INPUT_DIRECTORY
   website.generate OUTPUT_FOLDER_NAME

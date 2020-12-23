@@ -285,7 +285,7 @@ class Link < OrgTextObject
   end
 
   def to_html context
-    target = context.resolve_link_target @target
+    target = (context == nil) ? @target : context.resolve_link_target(@target)
     text = @text == nil ? target : @text
     style = @attributes.length > 0 ? "style=\"#{@attributes[0].style}\"" : ""
 

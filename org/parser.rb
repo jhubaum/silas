@@ -189,6 +189,7 @@ class OrgParser
 
     if @tokens.peek.is? :quotee_start
       @tokens.pop
+      @tokens.pop_while { |t| t.is? :whitespace }
       quotee = parse_text_line
     end
 

@@ -124,7 +124,8 @@ class Section < OrgTextObject
     @level = args[:level]
     @title = args[:title]
     @elements = args[:elements]
-    @id = (args.key? :id) ? args[:id] :
+    properties = args[:properties]
+    @id = (properties.key? "CUSTOM_ID") ? properties["CUSTOM_ID"] :
             @title.downcase.gsub(" ", "-")
   end
 
@@ -296,5 +297,21 @@ class HTMLStyleAttribute
   attr_reader :style
   def initialize str
     @style = str
+  end
+end
+
+class List < OrgTextObject
+  class Type
+    def initialize type
+      @type = type
+    end
+
+    def tag
+      @type == :unordered ? "ul" : "ol"
+    end
+  end
+
+  def initialize file, type, entries
+    super file
   end
 end

@@ -3,7 +3,7 @@ require "test/unit"
 
 class TestParsingSimple < Test::Unit::TestCase
   def setup
-    @file = OrgParser.parse_file "test/simple.org"
+    @file = OrgFile.new "test/simple.org", nil
   end
 
   def test_preamble
@@ -26,7 +26,7 @@ class TestParsingSimple < Test::Unit::TestCase
     assert_true(text[0].instance_of? Comment)
 
     quote = text[2]
-    assert_equal("I said something super smart", quote.text[0])
+    assert_equal("I said something super smart", quote.elements[0])
     assert_equal("Someone quoteable", quote.quotee[0])
   end
 

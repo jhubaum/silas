@@ -1,3 +1,5 @@
+require "pathname"
+
 class OrgParseError < ::StandardError
 end
 
@@ -7,61 +9,77 @@ end
 class InvalidTokenError < OrgParseError
 end
 
-class OrgDirectory
-  attr_reader :files, :directories, :name, :path
+class OrgObject
+  def visit visitor
+    method_name = "visit_#{self.class}"
+    visitor.send(method_name, self) if visitor.respond_to? method_name
 
-  def initialize path, subfolder=nil
-    raise OrgReadFileError, "Path given for OrgDirectory is no directory" unless Dir.exist? path
-
-    if subfolder == nil
-      @path = path
-      @name = path.split("/").last
-    else
-      @path = path + "/" + subfolder
-      @name = subfolder
-    end
-
-    @files = { }
-    @directories = { }
-
-    Dir.glob("#{@path}/*") do |f|
-      name = f.split("/").last
-      if File.file? f
-        @files[name.split(".").first] = OrgParser.parse_file f
-      else
-        @directories[name] = OrgDirectory.new path, name
+    if respond_to? :elements
+      elements.each do |e|
+        if e.is_a? OrgObject
+          e.visit visitor
+        else
+          method_name = "visit_#{e.class}"
+          visitor.send(method_name, e) if visitor.respond_to? method_name
+        end
       end
-    end
-  end
-
-  def all_files
-    @files.each { |name, file| yield name, file }
-    @directories.each do |d|
-      d.all_files { |name, file| yield name, file }
     end
   end
 end
 
-class OrgFile
-  private_class_method :new
-  attr_reader :preamble, :elements
+class ExternalFile < OrgObject
+end
 
+class OrgTextObject
+  attr_reader :file
 
-  def initialize preamble, elements
-    @preamble, @elements = preamble, elements
+  def initialize file
+    @file = file
+  end
+end
+
+class OrgFile < OrgObject
+  attr_reader :preamble, :elements, :filename, :parent
+
+  def initialize filename, parent=nil
+    @parent = parent
+    @filename = filename
+    @preamble, @elements = OrgParser.parse_file self, path
   end
 
-  def iterate_elements &block
-    @elements.each do |elem|
-      block.call elem
-      if elem.respond_to? :iterate_elements
-        elem.iterate_elements { |e| block.call e }
-      end
-    end
+  def url path=nil
+    @parent == nil ? id : "#{@parent.url path}/#{id}"
+  end
+
+  def id
+    @filename.split(".").first.snakecase
+  end
+
+  def path
+    @parent == nil ? @filename : File.join(@parent.path, @filename)
+  end
+
+  def name
+    @preamble[:title]
   end
 
   def to_html context
     @elements.to_html context, "\n"
+  end
+
+  def resolve_relative_path path
+    puts(path)
+    path
+  end
+end
+
+class IndexOrgFile < OrgFile
+  def initialize parent
+    super "index.org", parent
+  end
+
+  def url path=nil
+    @parent.url path
   end
 end
 
@@ -97,18 +115,17 @@ class Date
   end
 end
 
-class Section
+class Section < OrgTextObject
   attr_reader :level, :title, :elements, :id
 
-  def initialize level, title, elements, properties
-    @level = level
-    @title = title
-    @elements = elements
-    if properties.key? "CUSTOM_ID"
-      @id = properties["CUSTOM_ID"]
-    else
-      @id = title.downcase.gsub(" ", "-")
-    end
+  def initialize file, **args
+    super file
+
+    @level = args[:level]
+    @title = args[:title]
+    @elements = args[:elements]
+    @id = (args.key? :id) ? args[:id] :
+            @title.downcase.gsub(" ", "-")
   end
 
   def heading
@@ -120,10 +137,12 @@ class Section
   end
 end
 
-class Paragraph
+class Paragraph < OrgTextObject
   attr_reader :elements
 
-  def initialize elements
+  def initialize file, elements
+    super file
+
     @elements = elements
   end
 
@@ -132,10 +151,12 @@ class Paragraph
   end
 end
 
-class Block
+class Block < OrgTextObject
   attr_reader :elements
 
-  def initialize elements
+  def initialize file, elements
+    super file
+
     @elements = elements
   end
 
@@ -145,8 +166,8 @@ class Block
 end
 
 class Comment < Block
-  def initialize elements
-    super elements
+  def initialize file, elements
+    super file, elements
   end
 
   def class_name
@@ -157,8 +178,8 @@ end
 class Quote < Block
   attr_reader :quotee
 
-  def initialize elements, quotee
-    super elements
+  def initialize file, elements, quotee
+    super file, elements
     @quotee = quotee
   end
 
@@ -170,11 +191,13 @@ class Quote < Block
   end
 end
 
-class SpecialText
+class SpecialText < OrgTextObject
   attr_accessor :text
   attr_reader :kind
 
-  def initialize kind, text=""
+  def initialize file, kind, text=""
+    super file
+
     @kind = kind
     @text = text
   end
@@ -205,11 +228,30 @@ class String
   end
 
   def titlecase
-    self[0].upcase + self[1..-1].downcase
+    gsub(/[-_]/, " ").split(" ").map { |s| s[0].upcase + s[1..-1].downcase }.join " "
   end
 
   def snakecase
     downcase.gsub(/[ -]/, "_")
+  end
+
+  # maybe move these utility functions to Pathname and use Pathnames for all paths
+  def non_index_org_file?
+    org_file? and not end_with? "index.org"
+  end
+
+  def index_org_file?
+    end_with? "index.org"
+  end
+
+  def org_file?
+    end_with? ".org"
+  end
+end
+
+class Dir
+  def Dir.all_files path
+    Dir.glob("#{path}/**/*.*") { |file| yield file }
   end
 end
 
@@ -217,12 +259,22 @@ class Array
   def to_html context, div=""
     map { |e| e.to_html context }.join(div)
   end
+
+  def head
+    first
+  end
+
+  def tail
+    self[1..-1]
+  end
 end
 
-class Link
+class Link < OrgTextObject
   attr_accessor :attributes, :target, :text
 
-  def initialize target, text
+  def initialize file, target, text
+    super file
+
     @target, @text = target, text
     @attributes = []
   end

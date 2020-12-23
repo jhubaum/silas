@@ -5,11 +5,11 @@ require_relative 'token_helpers'
 class OrgParser
   attr_reader :preamble, :elements
 
-  def OrgParser.parse_file filename
+  def OrgParser.parse_file file, filename
     raise OrgReadFileError, "file '#{filename}' does not exist" unless File.file? filename
 
-    parser = OrgParser.new File.open(filename).read
-    OrgFile.send :new, parser.preamble, parser.elements
+    parser = OrgParser.new file, File.open(filename).read
+    return parser.preamble, parser.elements
   end
 
   def OrgParser.parse_expression expression
@@ -20,7 +20,8 @@ class OrgParser
       parser.elements
   end
 
-  def initialize expression
+  def initialize file, expression
+    @file = file
     @tokens = Tokenizer.tokenize expression
     @preamble = parse_preamble
     @elements = []
@@ -76,7 +77,7 @@ class OrgParser
       until @tokens.no_tokens? or @tokens.peek.is_paragraph_end?
         elems += parse_text_line
       end
-      Paragraph.new elems
+      Paragraph.new @file, elems
     end
   end
 
@@ -94,7 +95,8 @@ class OrgParser
       elements << elem unless elem == nil
     end
 
-    Section.new level, title, elements, properties
+    Section.new @file, level: level,
+    title: title, elements: elements, properties: properties
   end
 
   def section_level
@@ -175,7 +177,7 @@ class OrgParser
     until @tokens.peek.is? :block_end
       elements += parse_text_line
     end
-    Comment.new elements
+    Comment.new @file, elements
   end
 
   def parse_quote
@@ -190,7 +192,7 @@ class OrgParser
       quotee = parse_text_line
     end
 
-    Quote.new elements, quotee
+    Quote.new @file, elements, quotee
   end
 
   def parse_text_line
@@ -240,14 +242,14 @@ class OrgParser
     end
     @tokens.pop_expected :right_square_brace
 
-    l = Link.new target, text
+    l = Link.new @file, target, text
     l.attributes = pop_attributes if @attributes.length > 0
     l
   end
 
   def parse_special_text type
     text = parse_plain_text_until_and_pop @tokens.pop.kind
-    SpecialText.new type, text
+    SpecialText.new @file, type, text
   end
 
   def parse_plain_text_until_and_pop kind

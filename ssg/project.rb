@@ -1,38 +1,60 @@
-class Project
-  attr_reader :index, :files
+require "pathname"
+require_relative "../org/types"
 
-  def initialize orgdir
-    @orgdir = orgdir
-    @index, @files = load_files
+class Project < OrgObject
+  attr_reader :index, :files, :id
 
-    raise "project #{name} doesn't have an index file" if @index == nil
+  def initialize dirname, website
+    @website = website
+    @id = dirname
+    @index = IndexOrgFile.new self
+    @files = populate_files
   end
 
   def name
-    @orgdir.name.titlecase
+    @id.titlecase
   end
 
-  def url path
-    "#{path}/#{@orgdir.name.snakecase}"
+  def url path=nil
+    "#{@website.url path}/#{@id}"
+  end
+
+  def path
+    File.join(@website.path, @id)
+  end
+
+  def filename
+    @id
+  end
+
+  def elements
+    [@index] + @files.values.to_a
   end
 
   def create_link
-    Link.new @index, @name
+    Link.new nil, self, name
+  end
+
+  def visit visitor
+    @index.visit visitor
+    @files.values.each { |f| f.visit visitor }
   end
 
   private
-  def load_files
-    files = { }
-    index = nil
-    @orgdir.all_files do |filename, file|
-      if filename == "index"
-        raise "project #{name} redefines index in subdir" unless index == nil
-        index = file
-      elsif name != "ideas"
-        raise "duplicate filename '#{filename}' in project #{name}" if files.key? filename
-        files[filename] = file
+  def populate_files
+    pathname = Pathname.new path
+    files = {}
+
+    Dir.all_files(path) do |f|
+      if f.non_index_org_file?
+        relative_filepath = Pathname.new(f).relative_path_from(pathname).to_s
+        #puts "File: #{f}; Rel: #{relative_filepath}"
+        file = OrgFile.new relative_filepath, self
+
+        raise "duplicate id '#{file.id}' (in project '#{name}')" if files.key? file.id
+        files[file.id] = file
       end
     end
-    return index, files
+    files
   end
 end

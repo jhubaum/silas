@@ -27,9 +27,9 @@ class Website < OrgObject
     @external_files= {}
 
     @path.children.each do |f|
-      if f.non_index_org_file? and not IGNORED_ORG_FILES.include? f.basename
+      if f.non_index_org_file? and not IGNORED_ORG_FILES.include? f.basename.to_s
         @pages[f.realpath] = OrgFile.new f, self
-      elsif f.directory? and not IGNORED_FOLDERS.include? f
+      elsif f.directory? and not IGNORED_FOLDERS.include? f.basename.to_s
         @projects[f.realpath] = Project.new f, self
       end
     end

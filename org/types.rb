@@ -45,6 +45,19 @@ class ExternalFile < OrgObject
   def copy path
     FileUtils.cp @path.realpath.to_s, url(path)
   end
+
+  def type
+    case @path.fileending
+    when "jpg", "jpeg", "png"
+      :image
+    else
+      raise "Unknown filetype for external file '#{@path}'"
+    end
+  end
+
+  def of_type? val
+    val == type
+  end
 end
 
 class OrgTextObject
@@ -264,7 +277,7 @@ end
 
 class Pathname
   def fileending
-    basename.to_s.split(".").last
+    basename.to_s.split(".").last.downcase
   end
 
   def filename
@@ -337,11 +350,16 @@ class Link < OrgTextObject
 
   def to_html context
     resolve_target!
-    target = (@target.respond_to? :url) ? @target.url : @target
-    text = @text == nil ? target : @text
-    style = @attributes.length > 0 ? "style=\"#{@attributes[0].style}\"" : ""
+    style = @attributes.length > 0 ? " style=\"#{@attributes[0].style}\"" : ""
 
-    "<a href=\"#{target}\" target=\"_blank\" #{style}>#{text}</a>"
+    if @target.instance_of? ExternalFile and @target.of_type? :image
+      text = @text == nil ? "" : "alt=#{@text}"
+      "<img src=\"#{@target.url}\"#{style}#{text}>"
+    else
+      target = (@target.respond_to? :url) ? @target.url : @target
+      text = @text == nil ? target : @text
+      "<a href=\"#{target}\" target=\"_blank\"#{style}>#{text}</a>"
+    end
   end
 end
 

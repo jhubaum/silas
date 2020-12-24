@@ -10,6 +10,11 @@ class Project < OrgObject
     @path = path
     @index = IndexOrgFile.new self
     @files = populate_files
+    @external_files = {}
+  end
+
+  def external_files
+    return @external_files.values
   end
 
   def parent
@@ -51,7 +56,9 @@ class Project < OrgObject
   end
 
   def add_external_file path
-    path
+    @external_files[path.realpath] = ExternalFile.new path, self unless @external_files.key? path.realpath
+
+    @external_files[path.realpath]
   end
 
   def add_and_get_dependency dependency

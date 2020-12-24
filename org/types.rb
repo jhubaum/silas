@@ -1,4 +1,5 @@
 require "pathname"
+require "fileutils"
 
 class OrgParseError < ::StandardError
 end
@@ -28,6 +29,22 @@ class OrgObject
 end
 
 class ExternalFile < OrgObject
+  def initialize path, parent
+    @parent = parent
+    @path = path
+  end
+
+  def url path=nil
+    "#{@parent.url path}/#{id}"
+  end
+
+  def id
+    @path.basename
+  end
+
+  def copy path
+    FileUtils.cp @path.realpath.to_s, url(path)
+  end
 end
 
 class OrgTextObject

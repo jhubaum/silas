@@ -24,6 +24,7 @@ class Website < OrgObject
     @path = Pathname.new path
     @index = IndexOrgFile.new self
     @pages, @projects = {}, {}
+    @external_files= {}
 
     @path.children.each do |f|
       if f.non_index_org_file? and not IGNORED_ORG_FILES.include? f.basename
@@ -32,6 +33,11 @@ class Website < OrgObject
         @projects[f.realpath] = Project.new f, self
       end
     end
+  end
+
+  def copy_dependencies path
+    @external_files.values.each { |f| f.copy path }
+    @projects.values.each { |p| p.external_files.each { |f| f.copy path } }
   end
 
   def elements
@@ -43,7 +49,9 @@ class Website < OrgObject
   end
 
   def add_external_file path
-    path
+    @external_files[path.realpath] = ExternalFile.new path, self unless @external_files.key? path.realpath
+
+    @external_files[path]
   end
 
   def find_org_file path
@@ -59,6 +67,11 @@ class Website < OrgObject
 
   def add_and_get_dependency dependency
     raise "#{dependency} points to a path outside of website directory" unless @path.contains? dependency
+
+    # check if dependency is part of project
+    @projects.values.each do |p|
+      return p.add_and_get_dependency dependency if p.path.contains? dependency
+    end
 
     case
     when dependency == @path
@@ -115,6 +128,8 @@ class WebsiteBuilder
         r.post file
       end
     end
+
+    @website.copy_dependencies path
   end
 
   def resolve_link target

@@ -1,0 +1,4 @@
+#+title: A file in the subfolder
+#+published: <2020-08-21>
+
+The title says it all

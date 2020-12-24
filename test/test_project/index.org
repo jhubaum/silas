@@ -1,0 +1,4 @@
+#+title: A test project
+#+published: <2021-02-14>
+
+All this file has is a link to the [[file:../simple.org][simple test file]] and to a file in the [[file:other.org][same directory]]

@@ -39,11 +39,11 @@ class OrgTextObject
 end
 
 class OrgFile < OrgObject
-  attr_reader :preamble, :elements, :filename, :parent
+  attr_reader :preamble, :elements, :path, :parent
 
-  def initialize filename, parent=nil
+  def initialize path, parent=nil
     @parent = parent
-    @filename = filename
+    @path = path
     @preamble, @elements = OrgParser.parse_file self, path
   end
 
@@ -51,12 +51,12 @@ class OrgFile < OrgObject
     @parent == nil ? id : "#{@parent.url path}/#{id}"
   end
 
-  def id
-    @filename.split(".").first.snakecase
+  def relative_path
+    @path.relative_path_from @parent.path
   end
 
-  def path
-    @parent == nil ? @filename : File.join(@parent.path, @filename)
+  def id
+    @path.filename.snakecase
   end
 
   def name
@@ -67,15 +67,23 @@ class OrgFile < OrgObject
     @elements.to_html context, "\n"
   end
 
-  def resolve_relative_path path
-    puts(path)
-    path
+  def add_and_get_dependency dependency
+    @parent.add_and_get_dependency dependency
+  end
+
+  def resolve_path path
+    path = Pathname.new path if path.instance_of? String
+    path = @path.dirname + path
+
+    raise "link in '#{@path}' points to invalid file #{path}" unless path.file?
+
+    add_and_get_dependency path
   end
 end
 
 class IndexOrgFile < OrgFile
   def initialize parent
-    super "index.org", parent
+    super parent.path + Pathname.new("index.org"), parent
   end
 
   def url path=nil
@@ -235,24 +243,35 @@ class String
   def snakecase
     downcase.gsub(/[ -]/, "_")
   end
+end
 
-  # maybe move these utility functions to Pathname and use Pathnames for all paths
+class Pathname
+  def fileending
+    basename.to_s.split(".").last
+  end
+
+  def filename
+    basename.to_s.split(".").first
+  end
+
   def non_index_org_file?
-    org_file? and not end_with? "index.org"
+    org_file? and not index_org_file?
   end
 
   def index_org_file?
-    end_with? "index.org"
+    basename.to_s == "index.org"
   end
 
   def org_file?
-    end_with? ".org"
+    file? and fileending == "org"
   end
-end
 
-class Dir
-  def Dir.all_files path
-    Dir.glob("#{path}/**/*.*") { |file| yield file }
+  def contains? path
+    not path.relative_path_from(self).to_s.start_with? ".."
+  end
+
+  def Pathname.all_files_recursively path
+    Pathname.glob("#{path}/**/*.*")
   end
 end
 
@@ -284,8 +303,24 @@ class Link < OrgTextObject
     @text == nil ? @target : @text
   end
 
+  def resolve_target!
+    return @target unless @target.instance_of? String
+
+    case @target.split(":").first
+    when "http", "https", "mailto"
+      # link is ok
+    when "file"
+      @target = @file.resolve_path target[5..-1]
+    else
+      raise "Unable to deduce link type for target #{target}"
+    end
+
+    @target
+  end
+
   def to_html context
-    target = (context == nil) ? @target : context.resolve_link_target(@target)
+    resolve_target!
+    target = (@target.respond_to? :url) ? @target.url : @target
     text = @text == nil ? target : @text
     style = @attributes.length > 0 ? "style=\"#{@attributes[0].style}\"" : ""
 

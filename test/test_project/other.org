@@ -1,0 +1,4 @@
+#+title: Another org file
+#+published: <2020-12-24>
+
+This file doesn't have any content except this sentence. And this one.

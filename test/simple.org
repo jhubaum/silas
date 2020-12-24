@@ -26,7 +26,7 @@ Now, some other kinds of objects:
 
 An image with some html attributes:
 #+ATTR_HTML: :style float: right; margin: 20px
-[[/img/bumper-sticker.jpeg]]
+[[file:test_project/test.jpeg]]
 
 * Block tests
 #+BEGIN_COMMENT

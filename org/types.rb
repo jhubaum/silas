@@ -102,6 +102,8 @@ class OrgFile < OrgObject
   end
 
   def resolve_path path
+    # ignore link to sections for now
+    path = path.split("::").first
     path = Pathname.new path if path.instance_of? String
     path = @path.dirname + path
 

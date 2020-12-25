@@ -5,21 +5,7 @@ class Renderer
   class Context
     def initialize renderer, file
       @renderer = renderer
-      @title = file.preamble[:title]
-      @published = file.preamble[:published]
-      @last_edit = file.preamble[:lastedit]
-    end
-
-    def published?
-      @published != nil
-    end
-
-    def last_edit?
-      @last_edit != nil
-    end
-
-    def resolve_link_target target
-      @renderer.builder.resolve_link target
+      @info = file.preamble
     end
   end
 

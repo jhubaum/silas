@@ -1,8 +1,12 @@
 <main>
-  <h1><%= @title %></h1>
-  <% if published? %>
-    <span id="date-published"> Published on <%= @published.to_pretty_s %></span>
-  <% end %>
+  <h1><%= @info.title %></h1>
+  <span id="date-published">
+    <% if @info.draft %>
+    DRAFT
+    <% else %>
+    Published on <%= @info.published.to_pretty_s %>
+    <% end %>
+  </span>
 
   <%= yield %>
 

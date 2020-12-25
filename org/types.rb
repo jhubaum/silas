@@ -131,9 +131,30 @@ def print_element_tree object, indent = 0
   end
 end
 
+class Preamble
+  attr_reader :title, :published, :last_edit
+
+  def initialize **values
+    @title = values[:title]
+    @published = Date.from_s values.fetch(:published, nil)
+    @last_edit = Date.from_s values.fetch(:lastedit, nil)
+    @draft = values.fetch(:draft, false)
+    @values = values
+  end
+
+  def draft
+    @draft or @published == nil
+  end
+
+  def get key
+    @values.fetch key
+  end
+end
+
 
 class Date
   def Date.from_s s
+    return nil if s == nil
     /<(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})>/ =~ s
     Date.new y, m, d
   end

@@ -45,7 +45,7 @@ class Website < OrgObject
   end
 
   def url path=nil
-    path == nil ? @index.preamble[:url] : path
+    path == nil ? @index.preamble.get(:url) : path
   end
 
   def add_external_file path

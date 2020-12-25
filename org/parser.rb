@@ -51,12 +51,7 @@ class OrgParser
       preamble[val.to_sym] = tokens_to_s elems
     end
 
-    # convert dates
-    [:published, :lastedit].each do |k|
-      preamble[k] = Date.from_s preamble[k] if preamble.key? k
-    end
-
-    preamble
+    Preamble.new preamble
   end
 
   def pop_attributes

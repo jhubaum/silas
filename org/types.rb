@@ -227,7 +227,7 @@ class Quote < Block
   def to_html context
     "<blockquote>" +
       "<p>#{@elements.to_html context}</p>" +
-      (@quotee == nil ? "" : "<p>– #{@quotee.to_html context}<p>") +
+      (@quotee == nil ? "" : "<cite>#{@quotee.to_html context}</cite>") +
     "</blockquote>"
   end
 end

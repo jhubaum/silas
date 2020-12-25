@@ -1,5 +1,6 @@
 require "pathname"
 require "fileutils"
+require "rouge"
 
 class OrgParseError < ::StandardError
 end
@@ -234,12 +235,29 @@ end
 
 class CodeBlock < Block
   def initialize lang, code
-    @lang = lang
+    @@formatter ||= Rouge::Formatters::HTML.new
+
+    @lexer = lexer lang
     @code = code
   end
 
+  def lexer lang
+    case lang
+    when "python", "python3"
+      Rouge::Lexers::Python.new
+    else
+      raise "Codeblock: Unknown language #{lang}"
+    end
+  end
+
   def to_html context
-    raise "to_html for CodeBlock is not yet implemented"
+    code = @code.map { |c| convert_code_line c }.join("<br>\n")
+    "<p class=\"codeblock\">\n#{code}\n</p>"
+  end
+
+  private
+  def convert_code_line line
+    @@formatter.format(@lexer.lex line).replace_leading_spaces_with "&nbsp;"
   end
 end
 
@@ -285,6 +303,12 @@ class String
 
   def snakecase
     downcase.gsub(/[ -]/, "_")
+  end
+
+  def replace_leading_spaces_with str
+    /^ */ =~ self
+    cnt = $~.to_s.length
+    return str * cnt + self[cnt..-1]
   end
 end
 

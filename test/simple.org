@@ -54,3 +54,11 @@ Here now, is a more complicated list
 4. Here, the parent list continues
    1. But it has a nested ordered list
 5. This is the final element for the outermost list
+
+#+BEGIN_SRC python
+def check_prime(n):
+    for i in range(2, int(math.sqrt(n))+1):
+        if n % i == 0:
+            return False
+    return n > 1
+#+END_SRC

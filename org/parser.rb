@@ -213,10 +213,13 @@ class OrgParser
   end
 
   def parse_src args
-    lang = args
-    code = @tokens.pop_until { |t| t.is? :block_end }.map(&:value).join("")
+    code = []
+    until @tokens.peek.is? :block_end
+      code << @tokens.pop_until { |t| t.is? :newline }.map(&:value).join("")
+      @tokens.pop
+    end
 
-    CodeBlock.new lang, code
+    CodeBlock.new args[0], code
   end
 
   def parse_list indentation=0

@@ -232,6 +232,17 @@ class Quote < Block
   end
 end
 
+class CodeBlock < Block
+  def initialize lang, code
+    @lang = lang
+    @code = code
+  end
+
+  def to_html context
+    raise "to_html for CodeBlock is not yet implemented"
+  end
+end
+
 class SpecialText < OrgTextObject
   attr_accessor :text
   attr_reader :kind

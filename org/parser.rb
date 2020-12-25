@@ -8,6 +8,8 @@ class OrgParser
   def OrgParser.parse_file file, filename
     raise OrgReadFileError, "file '#{filename}' does not exist" unless File.file? filename
 
+    puts "Start parsing file '#{filename}'"
+
     parser = OrgParser.new file, File.open(filename).read
     return parser.preamble, parser.elements
   end
@@ -35,6 +37,9 @@ class OrgParser
 
   private
   def parse_preamble
+    if @tokens.has_tokens? and @tokens.peek.is? :quotee_start
+      raise "This file needs to be adjusted"
+    end
     preamble = { }
     while @tokens.pop_if { |t| t.is? :preamble_start }
       val = @tokens.pop_expected(:word).value
@@ -156,13 +161,22 @@ class OrgParser
 
   def parse_block
     block_type = @tokens.pop_expected([:block_start,
-                                       :word, :newline])[1].value
+                                       :word])[1].value
+
+    args = []
+    while @tokens.peek.is? :whitespace
+      @tokens.pop
+      args << @tokens.pop_expected(:word).value
+    end
+    @tokens.pop_expected :newline
 
     case block_type
     when "COMMENT"
-      res = parse_comment
+      res = parse_comment args
     when "QUOTE"
-      res = parse_quote
+      res = parse_quote args
+    when "SRC"
+      res = parse_src args
     else
       raise OrgParseError, "Unknown block type #{block_type}"
     end
@@ -174,7 +188,7 @@ class OrgParser
     res
   end
 
-  def parse_comment
+  def parse_comment args
     elements = []
     until @tokens.peek.is? :block_end
       elements += parse_text_line
@@ -182,7 +196,7 @@ class OrgParser
     Comment.new @file, elements
   end
 
-  def parse_quote
+  def parse_quote args
     elements = []
     quotee = nil
     until @tokens.peek.is_any? [:block_end, :quotee_start]
@@ -196,6 +210,13 @@ class OrgParser
     end
 
     Quote.new @file, elements, quotee
+  end
+
+  def parse_src args
+    lang = args
+    code = @tokens.pop_until { |t| t.is? :block_end }.map(&:value).join("")
+
+    CodeBlock.new lang, code
   end
 
   def parse_list indentation=0

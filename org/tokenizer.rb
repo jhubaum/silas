@@ -5,6 +5,7 @@ module Tokenizer
     [/[[:alpha:]]+/, :word],
     [/ /, :whitespace],
     [/\d+/, :number],
+    [/€/, :euro],
     [/:/, :colon],
     [/;/, :semicolon],
     [/@/, :at],
@@ -36,7 +37,9 @@ module Tokenizer
     [/'/, :single_quote],
     [/\//, :slash],
     [/\?/, :question_mark],
-    [/!/, :exclamation_mark]
+    [/!/, :exclamation_mark],
+    [/=/, :equal],
+    [/%/, :percent]
   ]
 end
 
@@ -154,7 +157,10 @@ module Tokenizer
           break
         end
       end
-      raise UnknownCharError, "Unknown char '#{expression[0]}' in line #{line}" unless matched
+      unless matched
+        puts "Warning: Unknown char '#{expression[0]}' in line #{line}:#{loc}"
+        tokens << Token.new(:unknown, expression[0], line, loc)
+      end
       loc += tokens.last.value.length
       if tokens.last.is? :newline
         line += 1

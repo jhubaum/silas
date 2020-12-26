@@ -2,6 +2,8 @@ require 'erb'
 require 'tilt'
 
 class Renderer
+  attr_accessor :url_base
+
   def initialize builder, path
     @builder = builder
     @path = path
@@ -11,17 +13,22 @@ class Renderer
     @post = Tilt.new("theme/post.html.erb")
     @page = Tilt.new("theme/page.html.erb")
     @project = Tilt.new("theme/project.html.erb")
+
+    @url_base = nil
   end
 
   def post file
+    puts "Render post #{file.path}"
     render @post, file, file
   end
 
   def page file
+    puts "Render page #{file.path}"
     render @page, file, file
   end
 
   def project_index project
+    puts "Render #{project.name}"
     render @project, project.index, project
   end
 
@@ -33,7 +40,7 @@ class Renderer
       f.write (@layout.render(context,
                               :header => @builder.header,
                               :title => file.info.title) do
-                 template.render(context) { file.to_html nil}
+                 template.render(context) { file.to_html @url_base}
                end)
     end
   end

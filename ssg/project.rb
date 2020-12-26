@@ -74,7 +74,7 @@ class Project < OrgObject
     return @website.add_and_get_dependency(dependency) unless @path.contains? dependency
 
     case
-    when dependency == @path
+    when dependency == @path, dependency == @index.path
       self
     when dependency.org_file?
       files[dependency.realpath]

@@ -74,7 +74,7 @@ class Website < OrgObject
     end
 
     case
-    when dependency == @path
+    when dependency == @path, dependency == @index.path
       self
     when dependency.org_file?
       find_org_file dependency
@@ -103,9 +103,12 @@ class ResolveLinksVisitor
 end
 
 class WebsiteBuilder
+  attr_accessor :preview
+
   def initialize path
     @website = Website.new path
     @website.visit ResolveLinksVisitor.new
+    @preview = false
   end
 
   def header
@@ -119,6 +122,7 @@ class WebsiteBuilder
 
   def generate path
     r = Renderer.new self, path
+    r.url_base = @preview ? path : nil
     r.page @website.index
     @website.pages.each { |sym, file| r.page file }
     @website.projects.values.each do |proj|

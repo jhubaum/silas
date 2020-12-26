@@ -409,6 +409,7 @@ class Link < OrgTextObject
 
   def resolve_target!
     return @target unless @target.instance_of? String
+    puts "A link has target #{@target}"
 
     case @target.split(":").first
     when "http", "https", "mailto"
@@ -419,7 +420,7 @@ class Link < OrgTextObject
       raise "Unable to deduce link type for target #{target}"
     end
 
-    @target
+    puts "Resolved link target to #{@target}"
   end
 
   def to_html context
@@ -428,9 +429,9 @@ class Link < OrgTextObject
 
     if @target.instance_of? ExternalFile and @target.of_type? :image
       text = @text == nil ? "" : "alt=#{@text}"
-      "<img src=\"#{@target.url}\"#{style}#{text}>"
+      "<img src=\"#{@target.url context}\"#{style}#{text}>"
     else
-      target = (@target.respond_to? :url) ? @target.url : @target
+      target = (@target.respond_to? :url) ? @target.url(context) : @target
       text = @text == nil ? target : @text
       "<a href=\"#{target}\" target=\"_blank\"#{style}>#{text}</a>"
     end

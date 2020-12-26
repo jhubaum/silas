@@ -82,6 +82,11 @@ class Website < OrgObject
       add_external_file dependency
     end
   end
+
+  private
+  def css_path filename
+    "css/#{filename}"
+  end
 end
 
 class ResolveLinksVisitor

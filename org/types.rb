@@ -27,6 +27,10 @@ class OrgObject
       end
     end
   end
+
+  def css filename
+    "<link href=\"#{send :css_path, filename}\"  rel=\"stylesheet\" type=\"text/css\">"
+  end
 end
 
 class ExternalFile < OrgObject
@@ -107,6 +111,11 @@ class OrgFile < OrgObject
     raise "link in '#{@path}' points to invalid file #{path}" unless path.file?
 
     add_and_get_dependency path
+  end
+
+  private
+  def css_path filename
+    "../" + @parent.send(:css_path, filename)
   end
 end
 

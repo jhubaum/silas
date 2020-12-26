@@ -99,4 +99,8 @@ class Project < OrgObject
     end
     files
   end
+
+  def css_path filename
+    "../" + @website.send(:css_path, filename)
+  end
 end

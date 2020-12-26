@@ -28,6 +28,17 @@ class OrgObject
     end
   end
 
+  def iterate include_self=false
+    yield self if include_self
+
+    if respond_to? :elements
+      elements.each do |e|
+        yield e
+        e.iterate(false) { yield } if e.is_a? OrgObject
+      end
+    end
+  end
+
   def css filename
     "<link href=\"#{send :css_path, filename}\"  rel=\"stylesheet\" type=\"text/css\">"
   end
@@ -103,14 +114,31 @@ class OrgFile < OrgObject
   end
 
   def resolve_path path
-    # ignore link to sections for now
-    path = path.split("::").first
+    path, section = path.split("::")
     path = Pathname.new path if path.instance_of? String
     path = @path.dirname + path
 
     raise "link in '#{@path}' points to invalid file #{path}" unless path.file?
 
-    add_and_get_dependency path
+    file = add_and_get_dependency path
+    section == nil ? file : file.find_section(section)
+  end
+
+  def find_section section
+    puts "Link to section '#{section}'"
+    case section[0]
+    when "*"
+      sections { |s| return s if s.title == section[1..-1] }
+    when "#"
+      sections { |s| return s if s.id == section[1..-1] }
+    else
+      raise "Invalid link #{section}' to section"
+    end
+    nil
+  end
+
+  def sections
+    iterate { |e| yield e if e.instance_of? Section }
   end
 
   private
@@ -213,7 +241,7 @@ class Section < OrgTextObject
     @elements = args[:elements]
     properties = args[:properties]
     @id = (properties.key? "CUSTOM_ID") ? properties["CUSTOM_ID"] :
-            @title.downcase.gsub(" ", "-")
+            @title.downcase.gsub(" ", "-").gsub(/[^a-z0-9 ]/, "")
   end
 
   def heading
@@ -222,6 +250,10 @@ class Section < OrgTextObject
 
   def to_html context
     heading + "\n" + @elements.to_html(context, "\n")
+  end
+
+  def url base=nil
+    "#{@file.url base}\##{@id}"
   end
 end
 

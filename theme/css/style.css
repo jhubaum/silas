@@ -128,3 +128,61 @@ blockquote {
 blockquote cite::before {
     content: "– ";
 }
+
+.catalogue-item{
+    border-bottom:1px solid #e5e5e5;
+    color:#555;
+    display:block;
+    padding-bottom: 0.5rem;
+}
+
+.catalogue-item:hover .catalogue-line,.catalogue-item:focus .catalogue-line{
+    width:5rem
+}
+
+.catalogue-item:last-child{
+    border:0
+}
+
+.catalogue-date {
+    color:#aaa;
+    white-space: nowrap;
+}
+
+@media only screen and (max-width: 600px) {
+    .catalogue-title {
+        margin-bottom: 0;
+    }
+    .catalogue-date {
+        margin: 0;
+        display: inline-block;
+        margin: 0.5rem 0;
+    }
+}
+
+@media only screen and (min-width: 600px) {
+    .catalogue-title {
+        display: inline-block;
+    }
+
+    .catalogue-date {
+        margin: .5rem 0 0 1rem;
+    }
+}
+
+.catalogue-title {
+    color: #353535;
+    margin:
+    margin-bottom: .5rem;
+}
+
+.catalogue-item:hover {
+    color: #555;
+}
+
+.catalogue-line{
+    transition:all 0.3s ease-out;
+    border-top:0.2rem solid #353535;
+    display:block;
+    width:2rem
+}

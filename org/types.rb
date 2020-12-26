@@ -70,12 +70,12 @@ class OrgTextObject
 end
 
 class OrgFile < OrgObject
-  attr_reader :preamble, :elements, :path, :parent
+  attr_reader :info, :elements, :path, :parent
 
   def initialize path, parent=nil
     @parent = parent
     @path = path
-    @preamble, @elements = OrgParser.parse_file self, path
+    @info, @elements = OrgParser.parse_file self, path
   end
 
   def url path=nil
@@ -88,10 +88,6 @@ class OrgFile < OrgObject
 
   def id
     @path.filename.snakecase
-  end
-
-  def name
-    @preamble[:title]
   end
 
   def to_html context
@@ -132,18 +128,28 @@ def print_element_tree object, indent = 0
 end
 
 class Preamble
-  attr_reader :title, :published, :last_edit
+  attr_reader :title, :published, :last_edit, :render_type
 
   def initialize **values
     @title = values[:title]
     @published = Date.from_s values.fetch(:published, nil)
     @last_edit = Date.from_s values.fetch(:lastedit, nil)
     @draft = values.fetch(:draft, false)
+    @render_type = values.fetch(:rendertype, :list).to_sym
+
     @values = values
   end
 
   def draft
     @draft or @published == nil
+  end
+
+  def summary?
+    @values.key? :summary
+  end
+
+  def summary
+    get :summary
   end
 
   def get key
@@ -153,11 +159,13 @@ end
 
 
 class Date
+  attr_reader :year, :month, :day
   def Date.from_s s
     return nil if s == nil
     /<(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})>/ =~ s
     Date.new y, m, d
   end
+
   def initialize year, month, day
     @year = year.to_i
     @month = month.to_i
@@ -174,6 +182,14 @@ class Date
 
   def to_pretty_s
     "#{MONTH_NAMES[@month-1]} #{@day}, #{@year}"
+  end
+
+  def <=> rhs
+    return -1 if rhs == nil
+    res = @year <=> rhs.year
+    res = @month <=> rhs.month if res == 0
+    res = @day <=> rhs.day if res == 0
+    res
   end
 end
 

@@ -41,6 +41,15 @@ class Project < OrgObject
     [@index] + @files.values.to_a
   end
 
+  def posts
+    @files.values.sort do |lhs, rhs|
+      lhs = lhs.info.published
+      rhs = rhs.info.published
+
+      lhs == nil ? -1 : (rhs == nil ? 1 : -(lhs <=> rhs))
+    end
+  end
+
   def create_link
     Link.new nil, self, name
   end

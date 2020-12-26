@@ -45,7 +45,7 @@ class Website < OrgObject
   end
 
   def url path=nil
-    path == nil ? @index.preamble.get(:url) : path
+    path == nil ? @index.info.get(:url) : path
   end
 
   def add_external_file path
@@ -122,7 +122,7 @@ class WebsiteBuilder
     r.page @website.index
     @website.pages.each { |sym, file| r.page file }
     @website.projects.values.each do |proj|
-      r.page proj.index
+      r.project_index proj
 
       proj.files.each do |name, file|
         r.post file
@@ -130,27 +130,5 @@ class WebsiteBuilder
     end
 
     @website.copy_dependencies path
-  end
-
-  def resolve_link target
-    puts "This resolve link is obsolete"
-    case target
-    when Project, OrgFile
-      target.url
-    when OrgFile
-      "This is a link to a file"
-    when String
-      type = target.split(":").first
-      case type
-      when "http", "https", "mailto"
-        target
-      when "file"
-        @website.resolve_path target[5..-1]
-      else
-        raise "Unable to deduce link type for target #{target}"
-      end
-    else
-      raise "Don't know how to interpret target of type #{target.class}"
-    end
   end
 end

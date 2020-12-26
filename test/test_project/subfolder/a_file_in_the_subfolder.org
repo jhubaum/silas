@@ -1,4 +1,5 @@
 #+title: A file in the subfolder
 #+published: <2020-08-21>
+#+summary: This subfolder file also has a summary
 
 The title says it all

@@ -1,0 +1,40 @@
+<main>
+  <h1><%= index.info.title %></h1>
+  <%= yield %>
+
+  <% if index.info.render_type == :list %>
+  <div class="catalogue">
+    <% posts.each do |post| %>
+    <a href="<%= post.url %>" class="catalogue-item">
+    <div>
+      <h2 class="catalogue-title"><%= post.info.title %></h2>
+      <% if post.info.draft %>
+      <span class="catalogue-date">DRAFT</span>
+      <% else %>
+      <time class="catalogue-date"
+            datetime="<%= post.info.published.to_s %>"
+            class="catalogue-time">
+        <%= post.info.published.to_pretty_s %>
+      </time>
+      <% end %>
+      <div class="catalogue-line"></div>
+      <p class="catalogue-summary">
+        <% if post.info.summary? %>
+        <%= post.info.summary %>
+        <% else %>
+        SUMMARY IS MISSING
+        <% end %>
+      </p>
+    </div>
+    </a>
+    <% end %>
+  </div>
+  <% end %>
+</main>
+<footer>
+  <% unless index.info.last_edit == nil %>
+  <span>Last edited: <%= index.info.last_edit.to_pretty_s %></span>
+  <% end %>
+  <hr size="0.5px" width="90%">
+  <a href="#" class="top">Top</a>
+</footer>

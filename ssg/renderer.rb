@@ -2,15 +2,6 @@ require 'erb'
 require 'tilt'
 
 class Renderer
-  class Context
-    def initialize renderer, file
-      @renderer = renderer
-      @info = file.preamble
-    end
-  end
-
-  attr_reader :builder
-
   def initialize builder, path
     @builder = builder
     @path = path
@@ -19,24 +10,30 @@ class Renderer
     @layout = Tilt.new("theme/layout.html.erb")
     @post = Tilt.new("theme/post.html.erb")
     @page = Tilt.new("theme/page.html.erb")
+    @project = Tilt.new("theme/project.html.erb")
   end
 
   def post file
-    render @post, file
+    render @post, file, file
   end
 
   def page file
-    render @page, file
+    render @page, file, file
+  end
+
+  def project_index project
+    render @project, project.index, project
   end
 
   private
-  def render template, file
+  def render template, file, context
     path = file.url @path
-    c = Context.new self, file
     Dir.mkdir path unless Dir.exist? path
     File.open(path + "/index.html", "w+") do |f|
-      f.write (@layout.render(c, :header => @builder.header) do
-                 template.render(c) { file.to_html c}
+      f.write (@layout.render(context,
+                              :header => @builder.header,
+                              :title => file.info.title) do
+                 template.render(context) { file.to_html nil}
                end)
     end
   end

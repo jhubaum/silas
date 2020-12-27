@@ -10,12 +10,12 @@
   <body>
     <nav class="nav">
       <div class="nav-container">
-        <a href="https://jhuwald.com/" id="nav-title">
+        <a href="<%= website.url %>" id="nav-title">
           <h2>Johannes Huwald</h2>
         </a>
         <ul>
           <% header.each do |link| %>
-          <li><%= link.to_html self %></li>
+          <li><%= link.to_html nil %></li>
           <% end %>
         </ul>
       </div>

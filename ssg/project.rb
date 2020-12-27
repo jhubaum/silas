@@ -50,8 +50,16 @@ class Project < OrgObject
     end
   end
 
-  def create_link
-    Link.new nil, self, name
+  def url_name
+    @index.url_name
+  end
+
+  def website
+    @website
+  end
+
+  def in_header?
+    not (draft? or @index.info.get :hidden, default: false)
   end
 
   def draft?

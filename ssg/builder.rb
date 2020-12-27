@@ -44,8 +44,14 @@ class Website < OrgObject
     [@index] + @pages.values.to_a + @projects.values.to_a
   end
 
+  def website
+    self
+  end
+
   def url path=nil
-    path == nil ? @index.info.get(:url) : path
+    return path unless path == nil
+
+    Config.preview ? Config.output_directory : @index.info.get(:url)
   end
 
   def add_external_file path
@@ -113,13 +119,16 @@ class WebsiteBuilder
     @website.visit ResolveLinksVisitor.new
   end
 
-  def header
-    return []
-    [
-      #Link.new(nil, @website.pages[:about], "About"),
-      #@website.projects[:blog].create_link,
-      #@website.projects[:writing_fiction].create_link
-    ]
+  def header render_target=nil
+    res = []
+    @website.pages.values.each do |p|
+      res << p.link(render_target) unless p.draft?
+    end
+
+    @website.projects.values.each do |p|
+      res << p.link(render_target) if p.in_header?
+    end
+    res
   end
 
   def generate path

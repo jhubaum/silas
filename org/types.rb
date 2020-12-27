@@ -28,6 +28,11 @@ class OrgObject
     end
   end
 
+  def link parent=nil
+    text = respond_to?(:url_name) ? url_name : name
+    Link.new parent, self, text
+  end
+
   def draft?
     false
   end
@@ -97,12 +102,20 @@ class OrgFile < OrgObject
     @info, @elements = OrgParser.parse_file self, path
   end
 
+  def website
+    @parent.website
+  end
+
   def draft?
     @info.draft or @info.published == nil
   end
 
   def url path=nil
     @parent == nil ? id : "#{@parent.url path}/#{id}"
+  end
+
+  def url_name
+    @info.get :alias, default: name
   end
 
   def relative_path
@@ -119,6 +132,10 @@ class OrgFile < OrgObject
 
   def add_and_get_dependency dependency
     @parent.add_and_get_dependency dependency
+  end
+
+  def name
+    @info.title
   end
 
   def resolve_path path
@@ -167,6 +184,11 @@ class IndexOrgFile < OrgFile
   def url path=nil
     @parent.url path
   end
+
+  private
+  def css_path filename
+    @parent.send :css_path, filename
+  end
 end
 
 def print_element_tree object, indent = 0
@@ -197,8 +219,10 @@ class Preamble
     get :summary
   end
 
-  def get key
-    @values.fetch key
+  def get key, **args
+    args.key?(:default) ?
+      @values.fetch(key, args[:default]) :
+      @values.fetch(key)
   end
 end
 

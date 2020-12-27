@@ -13,6 +13,10 @@ class Config
   def Config.target
     ARGV[0] == "debug" ? :debug : :website
   end
+
+  def Config.output_directory
+    OUTPUT_FOLDER_NAME
+  end
 end
 
 if Dir.exist? OUTPUT_FOLDER_NAME

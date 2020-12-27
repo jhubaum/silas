@@ -34,6 +34,7 @@ class Renderer
 
   private
   def render template, file, context
+    return if file.draft? and not Config.preview
     path = file.url @path
     Dir.mkdir path unless Dir.exist? path
     File.open(path + "/index.html", "w+") do |f|

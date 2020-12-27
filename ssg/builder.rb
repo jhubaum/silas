@@ -108,12 +108,9 @@ class ResolveLinksVisitor
 end
 
 class WebsiteBuilder
-  attr_accessor :preview
-
   def initialize path
     @website = Website.new path
     @website.visit ResolveLinksVisitor.new
-    @preview = false
   end
 
   def header
@@ -127,7 +124,7 @@ class WebsiteBuilder
 
   def generate path
     r = Renderer.new self, path
-    r.url_base = @preview ? path : nil
+    r.url_base = Config.preview ? path : nil
     r.page @website.index
     @website.pages.each { |sym, file| r.page file }
     @website.projects.values.each do |proj|

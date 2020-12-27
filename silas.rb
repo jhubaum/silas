@@ -5,6 +5,16 @@ require_relative 'ssg/builder'
 WEBSITE_INPUT_DIRECTORY = "/home/johannes/gtd/website/"
 OUTPUT_FOLDER_NAME = "/home/johannes/projects/silas/generated"
 
+class Config
+  def Config.preview
+    ARGV[0] == "preview" or target == :debug
+  end
+
+  def Config.target
+    ARGV[0] == "debug" ? :debug : :website
+  end
+end
+
 if Dir.exist? OUTPUT_FOLDER_NAME
   FileUtils.rm_rf(OUTPUT_FOLDER_NAME)
 end
@@ -19,6 +29,5 @@ if ARGV[0] == "debug"
   website.generate OUTPUT_FOLDER_NAME
 else
   website = WebsiteBuilder.new WEBSITE_INPUT_DIRECTORY
-  website.preview = ARGV[0] == "preview"
   website.generate OUTPUT_FOLDER_NAME
 end

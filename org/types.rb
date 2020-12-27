@@ -28,6 +28,10 @@ class OrgObject
     end
   end
 
+  def draft?
+    false
+  end
+
   def iterate include_self=false
     yield self if include_self
 
@@ -93,6 +97,10 @@ class OrgFile < OrgObject
     @info, @elements = OrgParser.parse_file self, path
   end
 
+  def draft?
+    @info.draft or @info.published == nil
+  end
+
   def url path=nil
     @parent == nil ? id : "#{@parent.url path}/#{id}"
   end
@@ -152,6 +160,10 @@ class IndexOrgFile < OrgFile
     super parent.path + Pathname.new("index.org"), parent
   end
 
+  def draft?
+    @info.draft
+  end
+
   def url path=nil
     @parent.url path
   end
@@ -165,7 +177,7 @@ def print_element_tree object, indent = 0
 end
 
 class Preamble
-  attr_reader :title, :published, :last_edit, :render_type
+  attr_reader :title, :published, :last_edit, :render_type, :draft
 
   def initialize **values
     @title = values[:title]
@@ -175,10 +187,6 @@ class Preamble
     @render_type = values.fetch(:rendertype, :list).to_sym
 
     @values = values
-  end
-
-  def draft
-    @draft or @published == nil
   end
 
   def summary?
@@ -388,6 +396,35 @@ class String
     cnt = $~.to_s.length
     return str * cnt + self[cnt..-1]
   end
+
+  def red
+    colorize(31)
+  end
+
+  def green
+    colorize(32)
+  end
+
+  def yellow
+    colorize(33)
+  end
+
+  def blue
+    colorize(34)
+  end
+
+  def pink
+    colorize(35)
+  end
+
+  def light_blue
+    colorize(36)
+  end
+
+  private
+  def colorize(color_code)
+    "\e[#{color_code}m#{self}\e[0m"
+  end
 end
 
 class Pathname
@@ -462,10 +499,15 @@ class Link < OrgTextObject
     end
 
     puts "Resolved link target to #{@target}"
+    @target
   end
 
   def to_html context
     resolve_target!
+    if @target.is_a? OrgObject and @target.draft?
+      puts "Warning: Link #{@target.path} in #{@file.path} points to draft".yellow
+      return @text unless Config.preview
+    end
     style = @attributes.length > 0 ? " style=\"#{@attributes[0].style}\"" : ""
 
     if @target.instance_of? ExternalFile and @target.of_type? :image

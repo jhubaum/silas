@@ -54,6 +54,10 @@ class Project < OrgObject
     Link.new nil, self, name
   end
 
+  def draft?
+    @index.draft?
+  end
+
   def resolve_path path
     split = path.split("/")
     @website.resolve_path(split.first == ".." ? split.tail.join("/") : path)

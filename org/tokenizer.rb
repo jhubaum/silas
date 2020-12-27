@@ -158,7 +158,7 @@ module Tokenizer
         end
       end
       unless matched
-        puts "Warning: Unknown char '#{expression[0]}' in line #{line}:#{loc}"
+        Log.info 3, "Unknown char '#{expression[0]}' in line #{line}:#{loc}"
         tokens << Token.new(:unknown, expression[0], line, loc)
       end
       loc += tokens.last.value.length

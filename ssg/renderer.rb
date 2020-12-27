@@ -18,17 +18,17 @@ class Renderer
   end
 
   def post file
-    puts "Render post #{file.path}"
+    Log.info 1, "Render post #{file.path}"
     render @post, file, file
   end
 
   def page file
-    puts "Render page #{file.path}"
+    Log.info 1, "Render page #{file.path}"
     render @page, file, file
   end
 
   def project_index project
-    puts "Render #{project.name}"
+    Log.info 1, "Render project #{project.path}"
     render @project, project.index, project
   end
 

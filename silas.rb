@@ -1,4 +1,5 @@
 require 'fileutils'
+require_relative 'logger'
 require_relative 'org/parser'
 require_relative 'ssg/builder'
 

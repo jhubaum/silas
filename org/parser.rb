@@ -8,7 +8,7 @@ class OrgParser
   def OrgParser.parse_file file, filename
     raise OrgReadFileError, "file '#{filename}' does not exist" unless File.file? filename
 
-    puts "Start parsing file '#{filename}'"
+    Log.info 1,  "Start parsing file '#{filename}'"
 
     parser = OrgParser.new file, File.open(filename).read
     return parser.preamble, parser.elements
@@ -283,7 +283,7 @@ class OrgParser
       begin
         new = parse_text_element
       rescue OrgParseError, TokenListError => error
-        puts "Warning: #{error}"
+        Log.info 2, "#{error}"
         new = @tokens.use_checkpoint_as_s
       ensure
         if elements.last.instance_of? String and

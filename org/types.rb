@@ -2,6 +2,8 @@ require "pathname"
 require "fileutils"
 require "rouge"
 
+require_relative "../logger"
+
 class OrgParseError < ::StandardError
 end
 
@@ -154,7 +156,7 @@ class OrgFile < OrgObject
   end
 
   def find_section section
-    puts "Link to section '#{section}'"
+    Log.info 2, "Link to section '#{section}'"
     case section[0]
     when "*"
       sections { |s| return s if s.title == section[1..-1] }
@@ -424,35 +426,6 @@ class String
     cnt = $~.to_s.length
     return str * cnt + self[cnt..-1]
   end
-
-  def red
-    colorize(31)
-  end
-
-  def green
-    colorize(32)
-  end
-
-  def yellow
-    colorize(33)
-  end
-
-  def blue
-    colorize(34)
-  end
-
-  def pink
-    colorize(35)
-  end
-
-  def light_blue
-    colorize(36)
-  end
-
-  private
-  def colorize(color_code)
-    "\e[#{color_code}m#{self}\e[0m"
-  end
 end
 
 class Pathname
@@ -519,7 +492,7 @@ class Link < OrgTextObject
 
   def resolve_target!
     return @target unless @target.instance_of? String
-    puts "A link has target #{@target}"
+    Log.info 2, "A link has target #{@target}"
 
     case @target.split(":").first
     when "http", "https", "mailto"
@@ -530,14 +503,14 @@ class Link < OrgTextObject
       raise "Unable to deduce link type for target #{target}"
     end
 
-    puts "Resolved link target to #{@target}"
+    Log.info 2, "Resolved link target to #{@target}"
     @target
   end
 
   def to_html context
     resolve_target!
     if @target.is_a? OrgObject and @target.draft?
-      puts "Warning: Link #{@target.path} in #{@file.path} points to draft".yellow
+      Log.warning "Link '#{@target.path}' in '#{@file.path}' points to draft"
       return @text unless Config.preview
     end
     style = @attributes.length > 0 ? " style=\"#{@attributes[0].style}\"" : ""

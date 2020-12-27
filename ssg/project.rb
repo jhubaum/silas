@@ -50,8 +50,8 @@ class Project < OrgObject
     end
   end
 
-  def url_name
-    @index.url_name
+  def title
+    @index.title
   end
 
   def website

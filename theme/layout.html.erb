@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <%= css "style.css" %>
     <%= css "code.css" %>
-    <title>Johannes Huwald ~ <%= title %></title>
+    <title><%= title %> | Johannes Huwald</title>
   </head>
   <body>
     <nav class="nav">
@@ -14,12 +14,11 @@
           <h2>Johannes Huwald</h2>
         </a>
         <ul>
-          <% header.each do |link| %>
-          <li><%= link.to_html nil %></li>
+          <% website.header do |h| %>
+          <li><a href="<%= h.url %>"><%= h.title %></a></li>
           <% end %>
         </ul>
       </div>
-      <hr size="0.5px" width="90%">
     </nav>
     <%= yield %>
   </body>

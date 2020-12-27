@@ -1,5 +1,8 @@
 <main>
-  <h1><%= index.info.title %></h1>
+  <h1><%= index.title %></h1>
+  <% unless index.info.published == nil %>
+  <span id="date-published">Published on: <%= index.info.published.to_pretty_s %></span>
+  <% end %>
   <%= yield %>
 
   <% if index.info.render_type == :list %>
@@ -35,6 +38,5 @@
   <% unless index.info.last_edit == nil %>
   <span>Last edited: <%= index.info.last_edit.to_pretty_s %></span>
   <% end %>
-  <hr size="0.5px" width="90%">
-  <a href="#" class="top">Top</a>
+  <p><a class="top" href="#">Top</a></p>
 </footer>

@@ -48,6 +48,11 @@ class Website < OrgObject
     self
   end
 
+  def header
+    @pages.values.each { |p| yield p unless p.draft? }
+    @projects.values.each { |p| yield p if p.in_header? }
+  end
+
   def url path=nil
     return path unless path == nil
 
@@ -117,18 +122,6 @@ class WebsiteBuilder
   def initialize path
     @website = Website.new path
     @website.visit ResolveLinksVisitor.new
-  end
-
-  def header render_target=nil
-    res = []
-    @website.pages.values.each do |p|
-      res << p.link(render_target) unless p.draft?
-    end
-
-    @website.projects.values.each do |p|
-      res << p.link(render_target) if p.in_header?
-    end
-    res
   end
 
   def generate path

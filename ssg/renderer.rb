@@ -38,9 +38,7 @@ class Renderer
     path = file.url @path
     Dir.mkdir path unless Dir.exist? path
     File.open(path + "/index.html", "w+") do |f|
-      f.write (@layout.render(context,
-                              :header => @builder.header,
-                              :title => file.info.title) do
+      f.write (@layout.render(context) do
                  template.render(context) { file.to_html @url_base}
                end)
     end

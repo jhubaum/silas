@@ -29,7 +29,7 @@ class OrgObject
   end
 
   def link parent=nil
-    text = respond_to?(:url_name) ? url_name : name
+    text = respond_to?(:title) ? title : name
     Link.new parent, self, text
   end
 
@@ -114,8 +114,8 @@ class OrgFile < OrgObject
     @parent == nil ? id : "#{@parent.url path}/#{id}"
   end
 
-  def url_name
-    @info.get :alias, default: name
+  def title
+    @info.title
   end
 
   def relative_path
@@ -505,6 +505,10 @@ class Link < OrgTextObject
     @attributes = []
   end
 
+  def internal?
+    @target.is_a? OrgObject or @target.is_a? OrgTextObject
+  end
+
   def to_s
     @text == nil ? @target : @text
   end
@@ -540,7 +544,7 @@ class Link < OrgTextObject
     else
       target = (@target.respond_to? :url) ? @target.url(context) : @target
       text = @text == nil ? target : @text
-      "<a href=\"#{target}\" target=\"_blank\"#{style}>#{text}</a>"
+      "<a href=\"#{target}\"#{internal? ? "" :  " target=\"_blank\""}#{style}>#{text}</a>"
     end
   end
 end

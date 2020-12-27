@@ -1,12 +1,17 @@
 :root {
-    --font-color: #555;
-    --background-color: #fff;
-    --highlight-color: #979797;
+    --color-main: #353535;
+    --color-black: #353535;
+    --color-dark-grey: #979797;
+    --color-light-grey: #e5e5e5;
+    --color-white: #fff;
+    --color-link: #4a9ae1;
+    --color-link-focus: #4a4fe0;
+    font-family: "Helvetica Neue","Segoe UI",Helvetica,Arial,sans-serif;
 }
 
 html {
-    color: var(--font-color);
-    background-color: var(--background-color);
+    color: var(--color-black);
+    background-color: var(--color-white);
     margin: 0;
     padding: 0;
 }
@@ -58,13 +63,13 @@ main,footer, .nav-container {
 }
 .nav a:hover,.nav a:focus{
     opacity: 1;
-    color: var(--font-color)
+    color: var(--color-black);
 }
 
 .nav a {
-    transition:all 0.2s ease-out;
-    color: var(--font-color);
-    opacity:.6;
+    transition: all 0.2s ease-out;
+    color: var(--color-black);
+    opacity: .6;
 }
 
 #nav-title{
@@ -72,7 +77,7 @@ main,footer, .nav-container {
 }
 
 #nav-title:hover, #nav-title:focus{
-    opacity:.6
+    opacity: .6;
 }
 
 #nav-title h2 {
@@ -83,34 +88,35 @@ main,footer, .nav-container {
 
 a {
     transition: all 0.3s ease-out;
-    color: #4a9ae1;
+    color: var(--color-link);
     text-decoration: none;
 }
 
 a:hover {
-    color:#4a4fe0;
+    color: var(--color-link-focus);
 }
 
 footer {
-    padding-top: 1rem;
-    position: relative;
+    padding: 0.5rem 0;
+}
+
+footer p {
+    margin: auto;
     text-align: center;
 }
 
-footer .top{
-    width: 80%;
-    color: var(--font-color);
+footer .top {
+    color: var(--color-black);
     opacity: .6;
     font-size:1.4rem;
-
 }
 
-footer .top:hover{
+footer .top:hover {
     opacity: 1;
 }
 
 .comment-block {
-    color: var(--highlight-color);
+    color: var(--color-dark-grey);
     font-style: italic;
 }
 
@@ -119,8 +125,8 @@ footer .top:hover{
 }
 
 blockquote {
-    border-left: 0.25rem solid #e5e5e5;
-    color: var(--highlight-color);
+    border-left: 0.25rem solid var(--color-dark-grey);
+    color: var(--color-dark-grey);
     margin: .8rem 0;
     padding: 0 5rem 0 1.25rem;
 }
@@ -129,60 +135,67 @@ blockquote cite::before {
     content: "– ";
 }
 
-.catalogue-item{
-    border-bottom:1px solid #e5e5e5;
-    color:#555;
-    display:block;
+.catalogue-item {
+    border-bottom: 1px solid var(--color-light-grey);
+    color: var(--color-black);
+    display: block;
     padding-bottom: 0.5rem;
 }
 
-.catalogue-item:hover .catalogue-line,.catalogue-item:focus .catalogue-line{
-    width:5rem
+.catalogue-item:hover .catalogue-line,.catalogue-item:focus .catalogue-line {
+    width: 5rem
 }
 
-.catalogue-item:last-child{
-    border:0
+.catalogue-item:last-child {
+    border: 0
 }
 
 .catalogue-date {
-    color:#aaa;
+    color: var(--color-dark-grey);
     white-space: nowrap;
-}
-
-@media only screen and (max-width: 600px) {
-    .catalogue-title {
-        margin-bottom: 0;
-    }
-    .catalogue-date {
-        margin: 0;
-        display: inline-block;
-        margin: 0.5rem 0;
-    }
-}
-
-@media only screen and (min-width: 600px) {
-    .catalogue-title {
-        display: inline-block;
-    }
-
-    .catalogue-date {
-        margin: .5rem 0 0 1rem;
-    }
+    margin: 0;
+    margin-bottom: 0.5rem;
+    display: inline-block;
 }
 
 .catalogue-title {
-    color: #353535;
-    margin:
+    color: var(--color-black);
+    display: inline-block;
+    margin-right: 1rem;
     margin-bottom: .5rem;
 }
 
 .catalogue-item:hover {
-    color: #555;
+    color: var(--color-black);
 }
 
-.catalogue-line{
-    transition:all 0.3s ease-out;
-    border-top:0.2rem solid #353535;
-    display:block;
-    width:2rem
+.catalogue-line {
+    transition: all 0.3s ease-out;
+    border-top: 0.2rem solid var(--color-black);
+    display: block;
+    width: 2rem;
+}
+
+main {
+    border-bottom: 3px solid var(--color-light-grey);
+    border-radius: 5px;
+    padding: 0 20px;
+}
+
+.nav {
+    border-bottom: 3px solid var(--color-light-grey);
+    border-radius: 5px;
+    margin: 0 50px;
+}
+
+@media (min-width: 700px) {
+    .nav-container {
+        text-align:left
+    }
+
+    .nav ul {
+        bottom:0;
+        position:absolute;
+        right:0
+    }
 }

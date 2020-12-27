@@ -8,7 +8,7 @@
     <a href="<%= post.url %>" class="catalogue-item">
     <div>
       <h2 class="catalogue-title"><%= post.info.title %></h2>
-      <% if post.info.draft %>
+      <% if post.draft? %>
       <span class="catalogue-date">DRAFT</span>
       <% else %>
       <time class="catalogue-date"

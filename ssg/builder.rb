@@ -94,6 +94,10 @@ class Website < OrgObject
     end
   end
 
+  def favicon
+    "images/favicon.png"
+  end
+
   private
   def css_path filename
     "css/#{filename}"

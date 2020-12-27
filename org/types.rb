@@ -51,6 +51,10 @@ class OrgObject
   def css filename
     "<link href=\"#{send :css_path, filename}\"  rel=\"stylesheet\" type=\"text/css\">"
   end
+
+  def favicon
+    "../" + @parent.favicon
+  end
 end
 
 class ExternalFile < OrgObject

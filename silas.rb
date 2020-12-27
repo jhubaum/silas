@@ -24,6 +24,8 @@ if Dir.exist? OUTPUT_FOLDER_NAME
 end
 Dir.mkdir OUTPUT_FOLDER_NAME
 FileUtils.cp_r("theme/css", OUTPUT_FOLDER_NAME + "/css")
+Dir.mkdir OUTPUT_FOLDER_NAME + "/images"
+FileUtils.cp("theme/favicon.png", OUTPUT_FOLDER_NAME + "/images")
 
 if ARGV[0] == "debug"
   #org = OrgFile.new "test/simple.org", nil

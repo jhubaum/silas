@@ -95,6 +95,10 @@ class Project < OrgObject
     end
   end
 
+  def favicon
+    "../" + @website.favicon
+  end
+
   private
   def populate_files
     files = { }

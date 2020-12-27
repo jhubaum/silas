@@ -4,7 +4,6 @@
   <span id="date-published">Published on: <%= index.info.published.to_pretty_s %></span>
   <% end %>
   <%= yield %>
-
   <% if index.info.render_type == :list %>
   <div class="catalogue">
     <% posts.each do |post| %>
@@ -14,20 +13,10 @@
       <% if post.draft? %>
       <span class="catalogue-date">DRAFT</span>
       <% else %>
-      <time class="catalogue-date"
-            datetime="<%= post.info.published.to_s %>"
-            class="catalogue-time">
-        <%= post.info.published.to_pretty_s %>
-      </time>
+      <time class="catalogue-date" datetime="<%= post.info.published.to_s %>"><%= post.info.published.to_pretty_s %></time>
       <% end %>
       <div class="catalogue-line"></div>
-      <p class="catalogue-summary">
-        <% if post.info.summary? %>
-        <%= post.info.summary %>
-        <% else %>
-        SUMMARY IS MISSING
-        <% end %>
-      </p>
+      <p class="catalogue-summary"><% if post.info.summary? %><%= post.info.summary %><% else %>SUMMARY IS MISSING<% end %></p>
     </div>
     </a>
     <% end %>

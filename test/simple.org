@@ -54,6 +54,7 @@ Here now, is a more complicated list
      - A third level of indentation doesn't break the parser
 4. Here, the parent list continues
    1. But it has a nested ordered list
+   2. Again, with two elements
 5. This is the final element for the outermost list
 
 #+BEGIN_SRC python

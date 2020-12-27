@@ -273,7 +273,7 @@ class Section < OrgTextObject
     @elements = args[:elements]
     properties = args[:properties]
     @id = (properties.key? "CUSTOM_ID") ? properties["CUSTOM_ID"] :
-            @title.downcase.gsub(" ", "-").gsub(/[^a-z0-9 ]/, "")
+            @title.downcase.gsub(" ", "-").gsub(/[^a-z0-9\-]/, "")
   end
 
   def heading
@@ -482,7 +482,7 @@ class Pathname
 end
 
 class Array
-  def to_html context, div=" "
+  def to_html context, div=""
     map { |e| e.to_html context }.join(div)
   end
 
@@ -602,7 +602,7 @@ class List < OrgTextObject
   end
 
   def to_html context
-    list = @entries.to_html context, "</li><li>"
+    list = @entries.to_html context, "</li>\n<li>"
     "<#{@type.tag}><li>#{list}</li></#{@type.tag}>"
   end
 end

@@ -222,7 +222,7 @@ class OrgParser
     entries = []
     loop do
       entries << parse_list_entry(indentation + type.indentation)
-      break if @tokens.no_tokens? or list_is_finished type, entries.length
+      break if @tokens.no_tokens? or list_is_finished type, entries.length, indentation
     end
     List.new @file, type, entries
   end
@@ -266,8 +266,8 @@ class OrgParser
     end
   end
 
-  def list_is_finished type, count
-    if type.is_next_entry @tokens.peek, count
+  def list_is_finished type, count, indentation
+    if parse_indentation(indentation) and type.is_next_entry @tokens.peek, count
       @tokens.pop
       @tokens.pop_while { |t| t.is_any? [:whitespace, :dot] }
       return false

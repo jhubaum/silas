@@ -5,6 +5,9 @@
     DRAFT
     <% else %>
     Published on <%= info.published.to_pretty_s %>
+    <% unless info.last_edit == nil %>
+    (Last edit: <%= info.last_edit.to_pretty_s %>)
+    <% end %>
     <% end %>
   </span>
 

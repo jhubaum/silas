@@ -368,12 +368,12 @@ class CodeBlock < Block
 
   def to_html context
     code = @code.map { |c| convert_code_line c }.join("<br>\n")
-    "<p class=\"codeblock\">\n#{code}\n</p>"
+    "<pre class=\"codeblock\"><code>\n#{code}\n</code></pre>"
   end
 
   private
   def convert_code_line line
-    @@formatter.format(@lexer.lex line).replace_leading_spaces_with "&nbsp;"
+    @@formatter.format(@lexer.lex line)
   end
 end
 

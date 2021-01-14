@@ -78,6 +78,12 @@ class OrgParser
       elems = []
       until @tokens.no_tokens? or @tokens.peek.is_paragraph_end?
         elems += parse_text_line
+
+        if elems.last.instance_of? String and
+          elems[-1] += " "
+        else
+          elems += [" "]
+        end
       end
       Paragraph.new @file, elems
     end
@@ -305,13 +311,7 @@ class OrgParser
       end
     end
     @tokens.pop_if { |t| t.is? :newline }
-
-    if elements.last.instance_of? String and
-      elements[-1] += " "
-      elements
-    else
-      elements + [" "]
-    end
+    elements
   end
 
   def parse_text_element

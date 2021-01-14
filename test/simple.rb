@@ -8,7 +8,7 @@ class TestParsingSimple < Test::Unit::TestCase
 
   def test_preamble
     assert_equal("This is a simple org file for testing the parser",
-                 @file.preamble[:title])
+                 @file.info.title)
   end
 
   def test_paragraph_count
@@ -17,7 +17,7 @@ class TestParsingSimple < Test::Unit::TestCase
     text = @file.elements[2].elements
     assert_equal(6, text.length)
     assert_equal(2, text[0].elements.length)
-    assert_equal(5, text[1].elements.length)
+    assert_equal(3, text[1].elements.length)
   end
 
   def test_blocks

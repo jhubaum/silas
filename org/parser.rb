@@ -218,7 +218,14 @@ class OrgParser
   end
 
   def parse_list indentation=0
-    type = parse_list_type
+    @tokens.start_checkpoint
+    begin
+      type = parse_list_type
+    rescue TokenListError
+      return @tokens.use_checkpoint_as_s
+    else
+      @tokens.release_checkpoint
+    end
     entries = []
     loop do
       entries << parse_list_entry(indentation + type.indentation)
@@ -262,6 +269,7 @@ class OrgParser
       @tokens.revert_checkpoint
       false
     else
+      @tokens.release_checkpoint
       true
     end
   end
@@ -285,6 +293,8 @@ class OrgParser
       rescue OrgParseError, TokenListError => error
         Log.info 2, "#{error}"
         new = @tokens.use_checkpoint_as_s
+      else
+        @tokens.release_checkpoint
       ensure
         if elements.last.instance_of? String and
           new.instance_of? String
@@ -295,7 +305,13 @@ class OrgParser
       end
     end
     @tokens.pop_if { |t| t.is? :newline }
-    elements
+
+    if elements.last.instance_of? String and
+      elements[-1] += " "
+      elements
+    else
+      elements + [" "]
+    end
   end
 
   def parse_text_element

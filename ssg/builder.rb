@@ -16,7 +16,7 @@ All classes that represent something in the website have five methods:
 =end
 
 class Website < OrgObject
-  IGNORED_FOLDERS = ["images"]
+  IGNORED_FOLDERS = ["images", "drafts"]
   IGNORED_ORG_FILES = ["ideas.org"]
   attr_reader :pages, :projects, :path, :index
 

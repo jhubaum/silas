@@ -1,0 +1,9 @@
+<main>
+  <%= yield %>
+</main>
+<footer>
+  <% unless info.last_edit == nil %>
+  <span>Last edited: <%= info.last_edit.to_pretty_s %></span>
+  <% end %>
+  <p><a class="top" href="#">Top</a></p>
+</footer>

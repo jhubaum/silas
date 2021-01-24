@@ -1,0 +1,17 @@
+{{#> layout }}
+<main>
+  <h1>{{ heading }}</h1>
+  <span id="date-published">
+    {{#unless published }}
+    DRAFT
+    {{else}}
+    Published on {{date published}}
+    {{#if last-edit}} (Last edit: {{date last-edit}} {{/if}}
+    {{/unless}}
+  </span>
+  {{{content}}}
+</main>
+<footer>
+  <p><a class="top" href="#">Top</a></p>
+</footer>
+{{/layout}}

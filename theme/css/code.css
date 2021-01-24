@@ -1,0 +1,216 @@
+.codeblock table td { padding: 5px; }
+.codeblock table pre { margin: 0; }
+.codeblock .c, .codeblock .ch, .codeblock .cd, .codeblock .cpf {
+  color: #75715e;
+  font-style: italic;
+}
+.codeblock .cm {
+  color: #75715e;
+  font-style: italic;
+}
+.codeblock .c1 {
+  color: #75715e;
+  font-style: italic;
+}
+.codeblock .cp {
+  color: #75715e;
+  font-weight: bold;
+}
+.codeblock .cs {
+  color: #75715e;
+  font-weight: bold;
+  font-style: italic;
+}
+.codeblock .err {
+  color: #960050;
+  background-color: #1e0010;
+}
+.codeblock .gi {
+  color: #ffffff;
+  background-color: #324932;
+}
+.codeblock .gd {
+  color: #ffffff;
+  background-color: #493131;
+}
+.codeblock .ge {
+  color: #000000;
+  font-style: italic;
+}
+.codeblock .gr {
+  color: #aa0000;
+}
+.codeblock .gt {
+  color: #aa0000;
+}
+.codeblock .gh {
+  color: #999999;
+}
+.codeblock .go {
+  color: #888888;
+}
+.codeblock .gp {
+  color: #555555;
+}
+.codeblock .gs {
+  font-weight: bold;
+}
+.codeblock .gu {
+  color: #aaaaaa;
+}
+.codeblock .k, .codeblock .kv {
+  color: #66d9ef;
+  font-weight: bold;
+}
+.codeblock .kc {
+  color: #66d9ef;
+  font-weight: bold;
+}
+.codeblock .kd {
+  color: #66d9ef;
+  font-weight: bold;
+}
+.codeblock .kp {
+  color: #66d9ef;
+  font-weight: bold;
+}
+.codeblock .kr {
+  color: #66d9ef;
+  font-weight: bold;
+}
+.codeblock .kt {
+  color: #66d9ef;
+  font-weight: bold;
+}
+.codeblock .kn {
+  color: #f92672;
+  font-weight: bold;
+}
+.codeblock .ow {
+  color: #f92672;
+  font-weight: bold;
+}
+.codeblock .o {
+  color: #f92672;
+  font-weight: bold;
+}
+.codeblock .mf {
+  color: #ae81ff;
+}
+.codeblock .mh {
+  color: #ae81ff;
+}
+.codeblock .il {
+  color: #ae81ff;
+}
+.codeblock .mi {
+  color: #ae81ff;
+}
+.codeblock .mo {
+  color: #ae81ff;
+}
+.codeblock .m, .codeblock .mb, .codeblock .mx {
+  color: #ae81ff;
+}
+.codeblock .se {
+  color: #ae81ff;
+}
+.codeblock .sa {
+  color: #66d9ef;
+  font-weight: bold;
+}
+.codeblock .sb {
+  color: #e6db74;
+}
+.codeblock .sc {
+  color: #e6db74;
+}
+.codeblock .sd {
+  color: #e6db74;
+}
+.codeblock .s2 {
+  color: #e6db74;
+}
+.codeblock .sh {
+  color: #e6db74;
+}
+.codeblock .si {
+  color: #e6db74;
+}
+.codeblock .sx {
+  color: #e6db74;
+}
+.codeblock .sr {
+  color: #e6db74;
+}
+.codeblock .s1 {
+  color: #e6db74;
+}
+.codeblock .ss {
+  color: #e6db74;
+}
+.codeblock .s, .codeblock .dl {
+  color: #e6db74;
+}
+.codeblock .na {
+  color: #a6e22e;
+}
+.codeblock .nc {
+  color: #a6e22e;
+  font-weight: bold;
+}
+.codeblock .nd {
+  color: #a6e22e;
+  font-weight: bold;
+}
+.codeblock .ne {
+  color: #a6e22e;
+  font-weight: bold;
+}
+.codeblock .nf, .codeblock .fm {
+  color: #a6e22e;
+  font-weight: bold;
+}
+.codeblock .no {
+  color: #66d9ef;
+}
+.codeblock .bp {
+  color: #f8f8f2;
+}
+.codeblock .nb {
+  color: #f8f8f2;
+}
+.codeblock .ni {
+  color: #f8f8f2;
+}
+.codeblock .nn {
+  color: #f8f8f2;
+}
+.codeblock .vc {
+  color: #f8f8f2;
+}
+.codeblock .vg {
+  color: #f8f8f2;
+}
+.codeblock .vi {
+  color: #f8f8f2;
+}
+.codeblock .nv, .codeblock .vm {
+  color: #f8f8f2;
+}
+.codeblock .w {
+  color: #f8f8f2;
+}
+.codeblock .nl {
+  color: #f8f8f2;
+  font-weight: bold;
+}
+.codeblock .nt {
+  color: #f92672;
+}
+.codeblock {
+  color: #f8f8f2;
+  background-color: #49483e;
+  padding: 5px 10px;
+  border-radius: 5px;
+}

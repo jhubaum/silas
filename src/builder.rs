@@ -8,7 +8,10 @@ use std::fs::File;
 use std::collections::BTreeMap;
 
 mod website;
-use website::{WebsiteLoadError, Website};
+use website::{WebsiteLoadError, Website, Post};
+
+mod router;
+use router::{Router, SingleBlogFolderRouter};
 
 fn render_date (h: &Helper, _: &Handlebars, _: &Context, _rc: &mut RenderContext, out: &mut dyn Output) -> HelperResult {
     let param = h.param(0).unwrap();
@@ -86,24 +89,48 @@ impl Builder<'_> {
         fs::create_dir(output_folder_path)?;
 
         let website = Website::load(Path::new(&self.path))?;
-        println!("IDs:");
+        let router = SingleBlogFolderRouter{website: &website};
+
+        for page in website.pages.iter() {
+            let filename = output_folder_path.to_string();
+            let filename = router.post_url(&page, filename);
+            println!("Rendering '{}'", filename);
+            if fs::metadata(&filename).is_ok() {
+                panic!("Duplicate post '{}'", filename)
+            }
+            fs::create_dir_all(&filename)?;
+            let filename = filename + "/index.html";
+            let mut file = File::create(&filename)?;
+            let data = page.serialize();
+            write!(file, "{}", self.templates.render("page", &data)?)?;
+        }
+
         for proj in website.projects.iter() {
-            println!("{}", proj.url(&website));
+            //println!("{}", proj.url(&website));
             for post in proj.posts.iter() {
-                println!("{}", post.url(&website));
+                let filename = output_folder_path.to_string();
+                let filename = router.post_url(post, filename);
+                println!("Rendering '{}'", filename);
+                if fs::metadata(&filename).is_ok() {
+                    panic!("Duplicate post '{}'", filename)
+                }
+                fs::create_dir_all(&filename)?;
+                let filename = filename + "/index.html";
+                let mut file = File::create(&filename)?;
+                let data = post.serialize();
+                write!(file, "{}", self.templates.render("post", &data)?)?;
             }
         }
-        /*
-        let mut data = BTreeMap::new();
-        data.insert("content".to_string(), post.content);
-        data.insert("title".to_string(), post.title);
-        data.insert("published".to_string(), post.published);
-
-        let filename = output_folder_path.to_string() + "/index.html";
-        let mut file = File::create(&filename)?;
-
-        write!(file, "{}", self.templates.render("post", &data)?)?;
-        */
         Ok(())
+    }
+}
+
+impl Post {
+    fn serialize(&self) -> BTreeMap<&str, &String> {
+        let mut data = BTreeMap::new();
+        data.insert("content", &self.content);
+        data.insert("title", &self.title);
+        data.insert("published", &self.published);
+        data
     }
 }

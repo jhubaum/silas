@@ -3,9 +3,7 @@ use orgize::export::{DefaultHtmlHandler, HtmlHandler};
 use std::path::{Path, PathBuf};
 use std::string::FromUtf8Error;
 use std::io::{self, Error as IOError, Write};
-use std::fs::{self, DirEntry};
-use std::rc::{Rc, Weak};
-use std::cell::RefCell;
+use std::fs;
 
 #[derive(Debug)]
 pub enum WebsiteLoadError {
@@ -98,8 +96,8 @@ pub struct Project {
 }
 
 pub struct PostIndex {
-    index: usize,
-    project: Option<ProjectIndex>
+    pub index: usize,
+    pub project: Option<ProjectIndex>
 }
 
 impl PostIndex {
@@ -127,6 +125,8 @@ impl Website {
                 let p = entry.path();
                 if p.is_dir() {
                     website.projects.push(Project::load(&p, ProjectIndex { index: website.projects.len()})?);
+                } else if p.file_name().unwrap() == "index.org" {
+                    // create index file here
                 } else if p.extension().unwrap() == "org" {
                     let post = Post::load(&p, PostIndex::without_project(website.pages.len()))?;
                     website.pages.push(post);
@@ -166,11 +166,13 @@ impl Project {
         visit_dirs(path, &mut filenames)?;
         let mut posts = Vec::<Post>::new();
         for f in filenames.iter() {
-            if f.extension().unwrap() == "org" {
+            if f.file_name().unwrap() == "index.org" {
+                // create index file here
+            } else if f.extension().unwrap() == "org" {
                 posts.push(Post::load(&f, PostIndex { index: posts.len(), project: Some(index) })?);
             }
         }
-        Ok(Project { posts, index, id: "project_id_not_parsed".to_string() })
+        Ok(Project { posts, index, id: path.file_name().unwrap().to_str().unwrap().to_string() })
     }
 
     pub fn url(&self, website: &Website) -> String {
@@ -192,7 +194,7 @@ impl Post {
 
         Ok(Post {
             index,
-            id: "post_id_not_parsed".to_string(),
+            id: filename.file_stem().unwrap().to_str().unwrap().to_string(),
             content: String::from_utf8(writer)?,
             title: "This is a test title".to_string(),
             published: "<2021-02-28>".to_string()

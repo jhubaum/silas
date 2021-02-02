@@ -1,5 +1,6 @@
 use handlebars::{Handlebars, RenderContext, Helper, Context, JsonRender, HelperResult, Output, RenderError, TemplateFileError};
 
+use std::path::Path;
 use std::io::{Error as IOError, Write};
 use std::fs;
 use std::fs::File;
@@ -7,7 +8,7 @@ use std::fs::File;
 use std::collections::BTreeMap;
 
 mod website;
-use website::{OrgLoadError, Post, OrgHTMLHandler};
+use website::{WebsiteLoadError, Website};
 
 fn render_date (h: &Helper, _: &Handlebars, _: &Context, _rc: &mut RenderContext, out: &mut dyn Output) -> HelperResult {
     let param = h.param(0).unwrap();
@@ -31,12 +32,12 @@ impl From<TemplateFileError> for InstantiationError {
 pub enum GenerationError {
     IO(IOError),
     Rendering(RenderError),
-    Org(OrgLoadError)
+    File(WebsiteLoadError)
 }
 
-impl From<OrgLoadError> for GenerationError {
-    fn from(err: OrgLoadError) -> Self {
-        GenerationError::Org(err)
+impl From<WebsiteLoadError> for GenerationError {
+    fn from(err: WebsiteLoadError) -> Self {
+        GenerationError::File(err)
     }
 }
 
@@ -69,7 +70,7 @@ impl Builder<'_> {
 
         Ok(Builder {
             templates,
-            path: blog_path.to_string()
+            path: String::from(blog_path)
         })
     }
 
@@ -84,9 +85,15 @@ impl Builder<'_> {
         }
         fs::create_dir(output_folder_path)?;
 
-        let mut handler = OrgHTMLHandler::default();
-        let post = Post::load(&self.path, &mut handler)?;
-
+        let website = Website::load(Path::new(&self.path))?;
+        println!("IDs:");
+        for proj in website.projects.iter() {
+            println!("{}", proj.url(&website));
+            for post in proj.posts.iter() {
+                println!("{}", post.url(&website));
+            }
+        }
+        /*
         let mut data = BTreeMap::new();
         data.insert("content".to_string(), post.content);
         data.insert("title".to_string(), post.title);
@@ -96,6 +103,7 @@ impl Builder<'_> {
         let mut file = File::create(&filename)?;
 
         write!(file, "{}", self.templates.render("post", &data)?)?;
+        */
         Ok(())
     }
 }

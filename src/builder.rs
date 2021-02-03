@@ -7,10 +7,12 @@ use std::fs::File;
 
 use std::collections::BTreeMap;
 
-mod website;
+pub mod website;
+pub mod org;
+mod router;
+
 use website::{WebsiteLoadError, Website, Post};
 
-mod router;
 use router::{Router, SingleBlogFolderRouter};
 
 fn render_date (h: &Helper, _: &Handlebars, _: &Context, _rc: &mut RenderContext, out: &mut dyn Output) -> HelperResult {
@@ -130,7 +132,9 @@ impl Post {
         let mut data = BTreeMap::new();
         data.insert("content", &self.content);
         data.insert("title", &self.title);
-        data.insert("published", &self.published);
+        if let Some(published) = &self.published {
+            data.insert("published", &published);
+        }
         data
     }
 }

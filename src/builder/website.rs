@@ -1,9 +1,9 @@
-use orgize::{Element, Org};
-use orgize::export::{DefaultHtmlHandler, HtmlHandler};
 use std::path::{Path, PathBuf};
-use std::string::FromUtf8Error;
-use std::io::{self, Error as IOError, Write};
+use std::io::{self, Error as IOError};
 use std::fs;
+
+use super::org;
+use super::org::{OrgLoadError, OrgFile};
 
 #[derive(Debug)]
 pub enum WebsiteLoadError {
@@ -15,12 +15,6 @@ pub enum WebsiteLoadError {
 pub enum ProjectLoadError {
     Org(OrgLoadError),
     IO(IOError),
-}
-
-#[derive(Debug)]
-pub enum OrgLoadError {
-    IO(IOError),
-    Utf8(FromUtf8Error)
 }
 
 impl From<ProjectLoadError> for WebsiteLoadError {
@@ -46,38 +40,6 @@ impl From<IOError> for ProjectLoadError {
         ProjectLoadError::IO(err)
     }
 }
-
-impl From<IOError> for OrgLoadError {
-    fn from(err: IOError) -> Self {
-        OrgLoadError::IO(err)
-    }
-}
-
-impl From<FromUtf8Error> for OrgLoadError {
-    fn from(err: FromUtf8Error) -> Self {
-        OrgLoadError::Utf8(err)
-    }
-}
-
-#[derive(Default)]
-pub struct OrgHTMLHandler(DefaultHtmlHandler);
-
-impl HtmlHandler<OrgLoadError> for OrgHTMLHandler {
-    fn start<W: Write>(&mut self, w: W, element: &Element) -> Result<(), OrgLoadError> {
-        match element {
-            _ => self.0.start(w, element)?
-        }
-        Ok(())
-    }
-
-    fn end<W: Write>(&mut self, w: W, element: &Element) -> Result<(), OrgLoadError> {
-        match element {
-            _ => self.0.end(w, element)?
-        }
-        Ok(())
-    }
-}
-
 
 pub struct Website {
     pub pages: Vec<Post>,
@@ -111,7 +73,7 @@ pub struct Post {
     pub id: String,
     pub content: String,
     pub title: String,
-    pub published: String
+    pub published: Option<String>
 }
 
 impl Website {
@@ -182,22 +144,23 @@ impl Project {
 
 impl Post {
     pub fn load(filename: &PathBuf, index: PostIndex) -> Result<Self, OrgLoadError> {
-        println!("Load post {:?}", filename);
-        let contents = String::from_utf8(fs::read(filename)?)?;
-        let parser = Org::parse(&contents);
-        //for event in parser.iter() {
-        //    println!("{:?}", event);
-        //}
-        let mut writer = Vec::new();
-        let mut handler = OrgHTMLHandler::default();
-        parser.write_html_custom(&mut writer, &mut handler)?;
+        let f = OrgFile::load(filename)?;
+
+        let published = match f.preamble.get("published") {
+            None => None,
+            Some(d) => Some(org::parse_date(d)?
+                .format("%A, %-d %B, %Y").to_string())
+        };
+
+        let title = match f.preamble.get("title") {
+            None => String::from("NO TITLE"),
+            Some(t) => t.clone()
+        };
 
         Ok(Post {
-            index,
-            id: filename.file_stem().unwrap().to_str().unwrap().to_string(),
-            content: String::from_utf8(writer)?,
-            title: "This is a test title".to_string(),
-            published: "<2021-02-28>".to_string()
+            index, title, published,
+            id: f.filename,
+            content: f.html
         })
     }
 

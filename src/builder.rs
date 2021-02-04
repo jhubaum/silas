@@ -5,7 +5,8 @@ use std::io::{Error as IOError, Write};
 use std::fs;
 use std::fs::File;
 
-use std::collections::BTreeMap;
+use serde::ser::{Serialize, SerializeStruct, Serializer};
+
 
 pub mod website;
 pub mod org;
@@ -63,6 +64,21 @@ pub struct Builder<'a> {
     path: String
 }
 
+fn copy_folder(folder: &str, target: &str) -> Result<(), IOError> {
+    if fs::metadata(target).is_ok() {
+        panic!{"copy_folder: target '{}' already exists", target};
+    }
+    fs::create_dir_all(target)?;
+
+    for entry in fs::read_dir(folder)? {
+        let entry = entry?;
+        println!("{:?}", entry);
+        fs::copy(entry.path(), target.to_string() + "/" + &entry.file_name().to_str().unwrap())?;
+    }
+
+    Ok(())
+}
+
 impl Builder<'_> {
     pub fn new(blog_path: &str) -> Result<Self, InstantiationError> {
         let mut templates = Handlebars::new();
@@ -93,48 +109,74 @@ impl Builder<'_> {
         let website = Website::load(Path::new(&self.path))?;
         let router = SingleBlogFolderRouter{website: &website};
 
+        // Copy css
+        copy_folder("./theme/css", &(output_folder_path.to_string() + "/css"))?;
+
         for page in website.pages.iter() {
-            let filename = output_folder_path.to_string();
-            let filename = router.post_url(&page, filename);
-            println!("Rendering '{}'", filename);
-            if fs::metadata(&filename).is_ok() {
-                panic!("Duplicate post '{}'", filename)
-            }
-            fs::create_dir_all(&filename)?;
-            let filename = filename + "/index.html";
-            let mut file = File::create(&filename)?;
-            let data = page.serialize();
-            write!(file, "{}", self.templates.render("page", &data)?)?;
+            let ser = PostSerializer { post: &page, router: &router };
+            let mut file = ser.prepare_file(output_folder_path)?;
+            write!(file, "{}", self.templates.render("page", &ser)?)?;
         }
 
         for proj in website.projects.iter() {
             //println!("{}", proj.url(&website));
             for post in proj.posts.iter() {
-                let filename = output_folder_path.to_string();
-                let filename = router.post_url(post, filename);
-                println!("Rendering '{}'", filename);
-                if fs::metadata(&filename).is_ok() {
-                    panic!("Duplicate post '{}'", filename)
-                }
-                fs::create_dir_all(&filename)?;
-                let filename = filename + "/index.html";
-                let mut file = File::create(&filename)?;
-                let data = post.serialize();
-                write!(file, "{}", self.templates.render("post", &data)?)?;
+                let ser = PostSerializer { post: &post, router: &router };
+                let mut file = ser.prepare_file(output_folder_path)?;
+                write!(file, "{}", self.templates.render("post", &ser)?)?;
             }
         }
         Ok(())
     }
 }
 
-impl Post {
-    fn serialize(&self) -> BTreeMap<&str, &String> {
-        let mut data = BTreeMap::new();
-        data.insert("content", &self.content);
-        data.insert("title", &self.title);
-        if let Some(published) = &self.published {
-            data.insert("published", &published);
+struct PostSerializer<'a, T> where T: Router {
+    post: &'a Post,
+    router: &'a T
+}
+
+impl<T> PostSerializer<'_, T> where T: Router {
+    fn resolve_css_path(&self, css: &str) -> String {
+        self.router.css_path_for_post(self.post, css)
+    }
+
+    fn prepare_file(&self, path: &str) -> Result<File, GenerationError> {
+        let filename = self.router.post_url(self.post, path.to_string());
+        println!("Rendering '{}'", filename);
+        if fs::metadata(&filename).is_ok() {
+            panic!("Duplicate post '{}'", filename)
         }
-        data
+        fs::create_dir_all(&filename)?;
+        let filename = filename + "/index.html";
+        Ok(File::create(&filename)?)
+    }
+}
+
+impl<T> Serialize for PostSerializer<'_, T> where T: Router {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: Serializer
+    {
+        let mut count = 4;
+        if let Some(_) = self.post.published { count += 1; }
+        if let Some(_) = self.post.last_edit { count += 1; }
+
+        let mut s = serializer.serialize_struct("Post", count)?;
+        s.serialize_field("content", &self.post.content)?;
+        s.serialize_field("title", &self.post.title)?;
+        s.serialize_field("heading", &self.post.title)?;
+        if let Some(published) = &self.post.published {
+            s.serialize_field("published", &published)?;
+        }
+
+        if let Some(last_edit) = &self.post.last_edit {
+            s.serialize_field("last-edit", &last_edit)?;
+        }
+
+        let mut css_args: Vec<String> = vec![self.resolve_css_path("style.css")];
+        for css in self.post.extra_css.iter() {
+            css_args.push(self.resolve_css_path(&css))
+        }
+        s.serialize_field("css", &css_args)?;
+        s.end()
     }
 }

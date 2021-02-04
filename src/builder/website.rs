@@ -73,7 +73,9 @@ pub struct Post {
     pub id: String,
     pub content: String,
     pub title: String,
-    pub published: Option<String>
+    pub published: Option<String>,
+    pub last_edit: Option<String>,
+    pub extra_css: Vec<String>
 }
 
 impl Website {
@@ -152,15 +154,23 @@ impl Post {
                 .format("%A, %-d %B, %Y").to_string())
         };
 
+        let last_edit = match f.preamble.get("last_edit") {
+            None => None,
+            Some(d) => Some(org::parse_date(d)?
+                .format("%A, %-d %B, %Y").to_string())
+        };
+
+
         let title = match f.preamble.get("title") {
             None => String::from("NO TITLE"),
             Some(t) => t.clone()
         };
 
         Ok(Post {
-            index, title, published,
+            index, title, published, last_edit,
             id: f.filename,
-            content: f.html
+            content: f.html,
+            extra_css: vec![]
         })
     }
 

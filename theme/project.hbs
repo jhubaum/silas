@@ -1,31 +1,27 @@
+{{#> layout }}
 <main>
-  <h1><%= index.title %></h1>
-  <% unless index.info.published == nil %>
-  <span id="date-published">Published on: <%= index.info.published.to_pretty_s %></span>
-  <% end %>
-  <%= yield %>
-  <% if index.info.render_type == :list %>
+  <h1>{{heading}}</h1>
   <div class="catalogue">
-    <% posts.each do |post| %>
-    <a href="<%= post.url %>" class="catalogue-item">
+    {{#each posts as |post|}}
+    <a href="{{post.url}}" class="catalogue-item">
     <div>
-      <h2 class="catalogue-title"><%= post.info.title %></h2>
-      <% if post.draft? %>
+      <h2 class="catalogue-title">{{post.title}}</h2>
+      {{#if post.published}}
+      <time class="catalogue-date" datetime="{{post.published}}">{{date post.published}}</time>
+      {{else}}
       <span class="catalogue-date">DRAFT</span>
-      <% else %>
-      <time class="catalogue-date" datetime="<%= post.info.published.to_s %>"><%= post.info.published.to_pretty_s %></time>
-      <% end %>
+      {{/if}}
       <div class="catalogue-line"></div>
-      <p class="catalogue-summary"><% if post.info.summary? %><%= post.info.summary %><% else %>SUMMARY IS MISSING<% end %></p>
+      <p class="catalogue-summary">
+         {{#if post.summary}}{{post.summary}}{{else}}SUMMARY IS MISSING{{/if}}
+      </p>
     </div>
     </a>
-    <% end %>
+    {{/each}}
   </div>
-  <% end %>
 </main>
 <footer>
-  <% unless index.info.last_edit == nil %>
-  <span>Last edited: <%= index.info.last_edit.to_pretty_s %></span>
-  <% end %>
+  {{#if last-edit}}<span>Last edited: {{date last-edit}}{{/if}}
   <p><a class="top" href="#">Top</a></p>
 </footer>
+{{/layout}}

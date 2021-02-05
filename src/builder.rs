@@ -126,7 +126,42 @@ impl Builder<'_> {
                 write!(file, "{}", self.templates.render("post", &ser)?)?;
             }
         }
+        let index = SingleBlogViewSerializer { router: &router };
+        write!(index.file(output_folder_path)?, "{}",
+               self.templates.render("project", &index)?)?;
         Ok(())
+    }
+}
+
+struct SingleBlogViewSerializer<'a> {
+    router: &'a SingleBlogFolderRouter<'a>
+}
+
+impl SingleBlogViewSerializer<'_> {
+    fn file(&self, path: &str) -> Result<File, GenerationError> {
+        let filename = String::from(path) + "/blog/index.html";
+        Ok(File::create(&filename)?)
+    }
+}
+
+impl<'a> Serialize for SingleBlogViewSerializer<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer
+    {
+        let mut s = serializer.serialize_struct("Blog", 4)?;
+        s.serialize_field("title", "Blog | Johannes Huwald")?;
+        s.serialize_field("heading", "Blog")?;
+
+        let mut posts: Vec<PostSerializer<'a, SingleBlogFolderRouter>> = vec![];
+        for project in &self.router.website.projects {
+            for post in &project.posts {
+                posts.push(PostSerializer { post, router: self.router });
+            }
+        }
+        s.serialize_field("posts", &posts)?;
+
+        let css_args: Vec<String> = vec![String::from("../css/style.css")];
+        s.serialize_field("css", &css_args)?;
+        s.end()
     }
 }
 
@@ -153,8 +188,7 @@ impl<T> PostSerializer<'_, T> where T: Router {
 }
 
 impl<T> Serialize for PostSerializer<'_, T> where T: Router {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where S: Serializer
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer
     {
         let mut count = 4;
         if let Some(_) = self.post.published { count += 1; }

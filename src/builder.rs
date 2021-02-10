@@ -13,8 +13,8 @@ pub mod org;
 mod router;
 
 use website::{WebsiteLoadError, Website, Post};
-
-use router::{Router, SingleBlogFolderRouter};
+use org::{OrgFile, OrgLoadError};
+use router::{Router, SingleBlogFolderRouter, NoopRouter};
 
 fn render_date (h: &Helper, _: &Handlebars, _: &Context, _rc: &mut RenderContext, out: &mut dyn Output) -> HelperResult {
     let param = h.param(0).unwrap();
@@ -93,6 +93,16 @@ impl Builder<'_> {
             templates,
             path: String::from(blog_path)
         })
+    }
+
+    pub fn generate_single_file(filename_in: &str, filename_out: &str) -> Result<(), OrgLoadError> {
+        let orgfile = OrgFile::load(Path::new(filename_in))?;
+        let router = NoopRouter {  };
+
+        let mut file = File::create(&filename_out)?;
+        write!(file, "{}", orgfile.to_html(&router)?)?;
+
+        Ok(())
     }
 
     pub fn generate(&mut self, output_folder_path: &str, delete_existing: bool) -> Result<(), GenerationError> {

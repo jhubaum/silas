@@ -18,8 +18,8 @@ impl Router for SingleBlogFolderRouter<'_> {
 
     fn post_url(&self, post: &Post, base: String) -> String {
         match post.index.project {
-            None => base + "/" + &post.id,
-            Some(_) => base + "/blog/" + &post.id
+            None => base + "/" + &post.id(),
+            Some(_) => base + "/blog/" + &post.id()
         }
     }
 

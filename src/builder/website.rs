@@ -5,6 +5,8 @@ use std::fs;
 use super::org;
 use super::org::{OrgLoadError, OrgFile};
 
+use super::router::Router;
+
 #[derive(Debug)]
 pub enum WebsiteLoadError {
     Project(ProjectLoadError),
@@ -70,12 +72,11 @@ impl PostIndex {
 
 pub struct Post {
     pub index: PostIndex,
-    pub id: String,
-    pub content: String,
     pub title: String,
     pub published: Option<String>,
     pub last_edit: Option<String>,
-    pub extra_css: Vec<String>
+    pub extra_css: Vec<String>,
+    orgfile: OrgFile
 }
 
 impl Website {
@@ -138,10 +139,6 @@ impl Project {
         }
         Ok(Project { posts, index, id: path.file_name().unwrap().to_str().unwrap().to_string() })
     }
-
-    pub fn url(&self, website: &Website) -> String {
-        website.url() + "/" + &self.id
-    }
 }
 
 impl Post {
@@ -168,19 +165,16 @@ impl Post {
 
         Ok(Post {
             index, title, published, last_edit,
-            id: f.filename,
-            content: f.html,
+            orgfile: f,
             extra_css: vec![]
         })
     }
 
-    pub fn url(&self, website: &Website) -> String {
-        match self.index.project {
-            None => website.url() + "/" + &self.id,
-            Some(p) => {
-                let proj = &website.projects[p.index];
-                website.url() + "/" + &proj.id + "/" + &self.id
-            }
-        }
+    pub fn id(&self) -> &str {
+        &self.orgfile.filename
+    }
+
+    pub fn content<T>(&self, router: &T) -> Result<String, OrgLoadError> where T: Router {
+        self.orgfile.to_html(router)
     }
 }

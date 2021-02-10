@@ -195,8 +195,8 @@ impl<T> Serialize for PostSerializer<'_, T> where T: Router {
         if let Some(_) = self.post.last_edit { count += 1; }
 
         let mut s = serializer.serialize_struct("Post", count)?;
-        s.serialize_field("content", &self.post.content)?;
-        s.serialize_field("title", &self.post.title)?;
+        s.serialize_field("content", &self.post.content(self.router).unwrap())?;
+        s.serialize_field("title", &(self.post.title.clone() + " | Johannes Huwald"))?;
         s.serialize_field("heading", &self.post.title)?;
         if let Some(published) = &self.post.published {
             s.serialize_field("published", &published)?;

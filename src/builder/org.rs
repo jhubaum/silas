@@ -7,6 +7,8 @@ use std::path::Path;
 use std::fs;
 use chrono::naive;
 
+use super::router::Router;
+
 #[derive(Debug)]
 pub enum OrgLoadError {
     NoFile,
@@ -57,8 +59,8 @@ impl HtmlHandler<OrgLoadError> for OrgHTMLHandler {
 #[derive(Debug)]
 pub struct OrgFile {
     pub filename: String,
+    pub contents: String,
     pub preamble: HashMap<String, String>,
-    pub html: String,
 }
 
 impl OrgFile {
@@ -83,6 +85,14 @@ impl OrgFile {
         preamble
     }
 
+    pub fn to_html<T>(&self, router: &T) -> Result<String, OrgLoadError> where T: Router {
+        let parser = Org::parse(&self.contents);
+        let mut writer = Vec::new();
+        let mut handler = OrgHTMLHandler::default();
+        parser.write_html_custom(&mut writer, &mut handler)?;
+        Ok(String::from_utf8(writer)?)
+    }
+
     pub fn load(filename: &Path) -> Result<Self, OrgLoadError> {
         match filename.extension() {
             None => return Err(OrgLoadError::NoFile),
@@ -94,16 +104,11 @@ impl OrgFile {
         let contents = String::from_utf8(fs::read(filename)?)?;
         let parser = Org::parse(&contents);
 
-        let mut writer = Vec::new();
-        let mut handler = OrgHTMLHandler::default();
-        parser.write_html_custom(&mut writer, &mut handler)?;
-
         let filename = filename.file_stem().unwrap()
                                .to_str().unwrap().to_string();
 
-        Ok(OrgFile { filename,
-                     preamble: OrgFile::extract_preamble(&parser),
-                     html: String::from_utf8(writer)? })
+        let preamble = OrgFile::extract_preamble(&parser);
+        Ok(OrgFile { filename, preamble, contents })
     }
 }
 

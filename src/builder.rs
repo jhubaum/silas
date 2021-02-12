@@ -1,20 +1,18 @@
 use handlebars::{Handlebars, RenderContext, Helper, Context, JsonRender, HelperResult, Output, RenderError, TemplateFileError};
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::io::{Error as IOError, Write};
 use std::fs;
 use std::fs::File;
 
-use serde::ser::{Serialize, SerializeStruct, Serializer};
-
+use serde::ser::{Serialize, Serializer, SerializeStruct};
 
 pub mod website;
 pub mod org;
-mod router;
+mod context;
 
-use website::{WebsiteLoadError, Website, Post};
-use org::{OrgFile, OrgLoadError};
-use router::{Router, SingleBlogFolderRouter, NoopRouter};
+use website::{WebsiteLoadError, Website, Post, PostIndex};
+use org::OrgLoadError;
 
 fn render_date (h: &Helper, _: &Handlebars, _: &Context, _rc: &mut RenderContext, out: &mut dyn Output) -> HelperResult {
     let param = h.param(0).unwrap();
@@ -28,22 +26,37 @@ pub enum InstantiationError {
     TemplateNotFound(TemplateFileError)
 }
 
+#[derive(Debug)]
+pub enum GenerationError {
+    IO(IOError),
+    Rendering(RenderError),
+    File(WebsiteLoadError),
+    Duplicate
+}
+
+#[derive(Debug)]
+pub enum SingleFileError {
+    Instantiation(InstantiationError),
+    GenerationError(GenerationError)
+}
+
+
 impl From<TemplateFileError> for InstantiationError {
     fn from(err: TemplateFileError) -> Self {
         InstantiationError::TemplateNotFound(err)
     }
 }
 
-#[derive(Debug)]
-pub enum GenerationError {
-    IO(IOError),
-    Rendering(RenderError),
-    File(WebsiteLoadError)
-}
 
 impl From<WebsiteLoadError> for GenerationError {
     fn from(err: WebsiteLoadError) -> Self {
         GenerationError::File(err)
+    }
+}
+
+impl From<OrgLoadError> for GenerationError {
+    fn from(err: OrgLoadError) -> Self {
+        GenerationError::File(err.into())
     }
 }
 
@@ -56,6 +69,18 @@ impl From<IOError> for GenerationError {
 impl From<RenderError> for GenerationError {
     fn from(err: RenderError) -> Self {
         GenerationError::Rendering(err)
+    }
+}
+
+impl<T> From<T> for SingleFileError where T: Into<GenerationError> {
+    fn from(err: T) -> Self {
+        Self::GenerationError(err.into())
+    }
+}
+
+impl From<InstantiationError> for SingleFileError {
+    fn from(err: InstantiationError) -> Self {
+        Self::Instantiation(err)
     }
 }
 
@@ -72,7 +97,6 @@ fn copy_folder(folder: &str, target: &str) -> Result<(), IOError> {
 
     for entry in fs::read_dir(folder)? {
         let entry = entry?;
-        println!("{:?}", entry);
         fs::copy(entry.path(), target.to_string() + "/" + &entry.file_name().to_str().unwrap())?;
     }
 
@@ -95,13 +119,16 @@ impl Builder<'_> {
         })
     }
 
-    pub fn generate_single_file(filename_in: &str, filename_out: &str) -> Result<(), OrgLoadError> {
-        let orgfile = OrgFile::load(Path::new(filename_in))?;
-        let router = NoopRouter {  };
+    pub fn generate_single_file(filename_in: &str, filename_out: &str) -> Result<(), SingleFileError> {
+        let builder = Builder::new("")?;
+
+        let post = Post::load(&PathBuf::from(filename_in), PostIndex::none())?;
+
+        let mut context = context::RenderContext::default();
+        context.set_target(&post);
 
         let mut file = File::create(&filename_out)?;
-        write!(file, "{}", orgfile.to_html(&router)?)?;
-
+        write!(file, "{}", builder.templates.render("post", &context.serialize()?)?)?;
         Ok(())
     }
 
@@ -117,109 +144,54 @@ impl Builder<'_> {
         fs::create_dir(output_folder_path)?;
 
         let website = Website::load(Path::new(&self.path))?;
-        let router = SingleBlogFolderRouter{website: &website};
+        let mut context = context::RenderContext::new(&website);
 
         // Copy css
         copy_folder("./theme/css", &(output_folder_path.to_string() + "/css"))?;
 
         for page in website.pages.iter() {
-            let ser = PostSerializer { post: &page, router: &router };
-            let mut file = ser.prepare_file(output_folder_path)?;
-            write!(file, "{}", self.templates.render("page", &ser)?)?;
+            context.set_target(&page);
+            let mut file = context.create_file(output_folder_path)?;
+            write!(file, "{}", self.templates.render("page", &context.serialize()?)?)?;
         }
 
+        let mut posts = Vec::new();
         for proj in website.projects.iter() {
-            //println!("{}", proj.url(&website));
             for post in proj.posts.iter() {
-                let ser = PostSerializer { post: &post, router: &router };
-                let mut file = ser.prepare_file(output_folder_path)?;
+                context.set_target(&post);
+                let mut file = context.create_file(output_folder_path)?;
+                let ser = context.serialize()?;
                 write!(file, "{}", self.templates.render("post", &ser)?)?;
+                posts.push(ser);
             }
         }
-        let index = SingleBlogViewSerializer { router: &router };
+        let index = SerializedBlogIndex { posts };
         write!(index.file(output_folder_path)?, "{}",
                self.templates.render("project", &index)?)?;
         Ok(())
     }
 }
 
-struct SingleBlogViewSerializer<'a> {
-    router: &'a SingleBlogFolderRouter<'a>
+struct SerializedBlogIndex {
+    posts: Vec<context::SerializedPost>,
 }
 
-impl SingleBlogViewSerializer<'_> {
+impl SerializedBlogIndex {
     fn file(&self, path: &str) -> Result<File, GenerationError> {
         let filename = String::from(path) + "/blog/index.html";
         Ok(File::create(&filename)?)
     }
 }
 
-impl<'a> Serialize for SingleBlogViewSerializer<'a> {
+impl Serialize for SerializedBlogIndex {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer
     {
         let mut s = serializer.serialize_struct("Blog", 4)?;
         s.serialize_field("title", "Blog | Johannes Huwald")?;
         s.serialize_field("heading", "Blog")?;
-
-        let mut posts: Vec<PostSerializer<'a, SingleBlogFolderRouter>> = vec![];
-        for project in &self.router.website.projects {
-            for post in &project.posts {
-                posts.push(PostSerializer { post, router: self.router });
-            }
-        }
-        s.serialize_field("posts", &posts)?;
+        s.serialize_field("posts", &self.posts)?;
 
         let css_args: Vec<String> = vec![String::from("../css/style.css")];
-        s.serialize_field("css", &css_args)?;
-        s.end()
-    }
-}
-
-struct PostSerializer<'a, T> where T: Router {
-    post: &'a Post,
-    router: &'a T
-}
-
-impl<T> PostSerializer<'_, T> where T: Router {
-    fn resolve_css_path(&self, css: &str) -> String {
-        self.router.css_path_for_post(self.post, css)
-    }
-
-    fn prepare_file(&self, path: &str) -> Result<File, GenerationError> {
-        let filename = self.router.post_url(self.post, path.to_string());
-        println!("Rendering '{}'", filename);
-        if fs::metadata(&filename).is_ok() {
-            panic!("Duplicate post '{}'", filename)
-        }
-        fs::create_dir_all(&filename)?;
-        let filename = filename + "/index.html";
-        Ok(File::create(&filename)?)
-    }
-}
-
-impl<T> Serialize for PostSerializer<'_, T> where T: Router {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer
-    {
-        let mut count = 4;
-        if let Some(_) = self.post.published { count += 1; }
-        if let Some(_) = self.post.last_edit { count += 1; }
-
-        let mut s = serializer.serialize_struct("Post", count)?;
-        s.serialize_field("content", &self.post.content(self.router).unwrap())?;
-        s.serialize_field("title", &(self.post.title.clone() + " | Johannes Huwald"))?;
-        s.serialize_field("heading", &self.post.title)?;
-        if let Some(published) = &self.post.published {
-            s.serialize_field("published", &published)?;
-        }
-
-        if let Some(last_edit) = &self.post.last_edit {
-            s.serialize_field("last-edit", &last_edit)?;
-        }
-
-        let mut css_args: Vec<String> = vec![self.resolve_css_path("style.css")];
-        for css in self.post.extra_css.iter() {
-            css_args.push(self.resolve_css_path(&css))
-        }
         s.serialize_field("css", &css_args)?;
         s.end()
     }

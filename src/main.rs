@@ -20,8 +20,7 @@ fn main() {
         .get_matches();
 
     if matches.is_present("file") {
-        match Builder::generate_single_file(matches.value_of("PATH").unwrap(),
-                                            "out.html") {
+        match Builder::generate_single_file(matches.value_of("PATH").unwrap(), "out.html") {
             Ok(()) => println!("Wrote {} to out.html",
                            matches.value_of("PATH").unwrap()),
             Err(err) => panic!("{:?}", err)

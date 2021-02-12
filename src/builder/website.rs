@@ -3,9 +3,9 @@ use std::io::{self, Error as IOError};
 use std::fs;
 
 use super::org;
-use super::org::{OrgLoadError, OrgFile};
+use super::org::{OrgLoadError, OrgFile, OrgHTMLHandler};
 
-use super::router::Router;
+use super::context::RenderContext;
 
 #[derive(Debug)]
 pub enum WebsiteLoadError {
@@ -50,7 +50,6 @@ pub struct Website {
 
 #[derive(Copy, Clone)]
 pub struct ProjectIndex {
-    index: usize
 }
 
 pub struct Project {
@@ -67,6 +66,10 @@ pub struct PostIndex {
 impl PostIndex {
     fn without_project(index: usize) -> Self {
         PostIndex { index, project: None }
+    }
+
+    pub fn none() -> Self {
+        PostIndex { index: 0, project: None }
     }
 }
 
@@ -89,7 +92,7 @@ impl Website {
             if let Ok(entry) = entry {
                 let p = entry.path();
                 if p.is_dir() {
-                    website.projects.push(Project::load(&p, ProjectIndex { index: website.projects.len()})?);
+                    website.projects.push(Project::load(&p, ProjectIndex { })?);
                 } else if p.file_name().unwrap() == "index.org" {
                     // create index file here
                 } else if p.extension().unwrap() == "org" {
@@ -125,8 +128,6 @@ fn visit_dirs(dir: &Path, files: &mut Vec::<PathBuf>) -> io::Result<()> {
 
 impl Project {
     pub fn load(path: &PathBuf, index: ProjectIndex) -> Result<Self, ProjectLoadError> {
-        println!("Create project {:?}", path);
-
         let mut filenames = Vec::<PathBuf>::new();
         visit_dirs(path, &mut filenames)?;
         let mut posts = Vec::<Post>::new();
@@ -174,7 +175,8 @@ impl Post {
         &self.orgfile.filename
     }
 
-    pub fn content<T>(&self, router: &T) -> Result<String, OrgLoadError> where T: Router {
-        self.orgfile.to_html(router)
+    pub fn content(&self, context: &RenderContext) -> Result<String, OrgLoadError> {
+        let mut handler = OrgHTMLHandler::new(context);
+        self.orgfile.to_html(&mut handler)
     }
 }

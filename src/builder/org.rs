@@ -1,5 +1,5 @@
 use orgize::{Element, Org, Event};
-use orgize::export::{DefaultHtmlHandler, HtmlHandler};
+use orgize::export::{DefaultHtmlHandler, HtmlHandler, HtmlEscape};
 use std::collections::HashMap;
 use std::io::{Error as IOError, Write};
 use std::string::FromUtf8Error;
@@ -7,7 +7,7 @@ use std::path::Path;
 use std::fs;
 use chrono::naive;
 
-use super::router::Router;
+use super::context::RenderContext;
 
 #[derive(Debug)]
 pub enum OrgLoadError {
@@ -36,21 +36,36 @@ impl From<chrono::ParseError> for OrgLoadError {
     }
 }
 
-
 #[derive(Default)]
-struct OrgHTMLHandler(DefaultHtmlHandler);
+pub struct OrgHTMLHandler<'a> {
+    fallback: DefaultHtmlHandler,
+    context: Option<&'a RenderContext<'a>>
+}
 
-impl HtmlHandler<OrgLoadError> for OrgHTMLHandler {
-    fn start<W: Write>(&mut self, w: W, element: &Element) -> Result<(), OrgLoadError> {
+impl<'a> OrgHTMLHandler<'a> {
+    pub fn new(context: &'a RenderContext) -> Self {
+        OrgHTMLHandler { context: Some(context),
+                         fallback: DefaultHtmlHandler::default() }
+    }
+}
+
+impl HtmlHandler<OrgLoadError> for OrgHTMLHandler<'_> {
+    fn start<W: Write>(&mut self, mut w: W, element: &Element) -> Result<(), OrgLoadError> {
         match element {
-            _ => self.0.start(w, element)?
+            Element::Link(link) => write!(
+                w,
+                "<a href=\"{}\">{}</a>",
+                HtmlEscape(&link.path), // resolve link here
+                HtmlEscape(link.desc.as_ref().unwrap_or(&link.path)),
+            )?,
+            _ => self.fallback.start(w, element)?
         }
         Ok(())
     }
 
     fn end<W: Write>(&mut self, w: W, element: &Element) -> Result<(), OrgLoadError> {
         match element {
-            _ => self.0.end(w, element)?
+            _ => self.fallback.end(w, element)?
         }
         Ok(())
     }
@@ -85,11 +100,10 @@ impl OrgFile {
         preamble
     }
 
-    pub fn to_html<T>(&self, router: &T) -> Result<String, OrgLoadError> where T: Router {
+    pub fn to_html<T>(&self, handler: &mut T) -> Result<String, OrgLoadError> where T: HtmlHandler<OrgLoadError> {
         let parser = Org::parse(&self.contents);
         let mut writer = Vec::new();
-        let mut handler = OrgHTMLHandler::default();
-        parser.write_html_custom(&mut writer, &mut handler)?;
+        parser.write_html_custom(&mut writer, handler)?;
         Ok(String::from_utf8(writer)?)
     }
 

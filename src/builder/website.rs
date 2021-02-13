@@ -1,10 +1,11 @@
-use std::path::{Path, PathBuf};
+use std::path::{Path, PathBuf, Iter};
 use std::io::{self, Error as IOError};
 use std::fs;
 
+
+use super::GenerationError;
 use super::org;
 use super::org::{OrgLoadError, OrgFile, OrgHTMLHandler};
-
 use super::context::RenderContext;
 
 #[derive(Debug)]
@@ -45,17 +46,20 @@ impl From<IOError> for ProjectLoadError {
 
 pub struct Website {
     pub pages: Vec<Post>,
-    pub projects: Vec<Project>
+    pub projects: Vec<Project>,
+    pub path: PathBuf,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct ProjectIndex {
+    index: usize
 }
 
 pub struct Project {
     pub index: ProjectIndex,
     pub posts: Vec<Post>,
     pub id: String,
+    path: PathBuf
 }
 
 pub struct PostIndex {
@@ -67,8 +71,10 @@ impl PostIndex {
     fn without_project(index: usize) -> Self {
         PostIndex { index, project: None }
     }
+}
 
-    pub fn none() -> Self {
+impl Default for PostIndex {
+    fn default() -> Self {
         PostIndex { index: 0, project: None }
     }
 }
@@ -79,6 +85,7 @@ pub struct Post {
     pub published: Option<String>,
     pub last_edit: Option<String>,
     pub extra_css: Vec<String>,
+    pub path: PathBuf,
     orgfile: OrgFile
 }
 
@@ -86,13 +93,14 @@ impl Website {
     pub fn load(path: &Path) -> Result<Self, WebsiteLoadError> {
         let mut website = Website {
             pages: vec![],
-            projects: vec![]
+            projects: vec![],
+            path: path.to_path_buf()
         };
         for entry in path.read_dir().expect("Path does not exist") {
             if let Ok(entry) = entry {
                 let p = entry.path();
                 if p.is_dir() {
-                    website.projects.push(Project::load(&p, ProjectIndex { })?);
+                    website.projects.push(Project::load(&p, ProjectIndex { index: website.projects.len() })?);
                 } else if p.file_name().unwrap() == "index.org" {
                     // create index file here
                 } else if p.extension().unwrap() == "org" {
@@ -107,6 +115,63 @@ impl Website {
 
     pub fn url(&self) -> String {
         String::from("https://jhuwald.com")
+    }
+
+    pub fn find_post_from_path(&self, path: PathBuf) -> Option<&Post> {
+        let mut iter = path.iter();
+
+        for c in self.path.iter() {
+            let cur = iter.next();
+            if cur.is_none() || cur.unwrap() != c {
+                // given path isn't a subpath of website
+                println!("Link points to file outside of website directory");
+                return None;
+            }
+        }
+
+        let proj_name = iter.next();
+        if proj_name.is_none() {
+            return None;
+        }
+        let proj_name = proj_name.unwrap().to_str().unwrap().to_string();
+
+        for p in &self.projects {
+            if p.id == proj_name {
+                return p.find_post_from_path(iter);
+            }
+        }
+
+        let mut path = self.path.clone();
+        path.push(proj_name);
+
+        for p in &self.pages {
+            if p.path == path {
+                return Some(p);
+            }
+        }
+        return None;
+    }
+
+    pub fn get_relative_url(&self, from: &Post, to: &Post) -> String {
+        let base = String::from("../");
+        if from.index.project == to.index.project {
+            return base + to.id();
+        }
+
+        match from.index.project {
+            None => {
+                // to has to have a project
+                base + "blog/" + to.id()
+            },
+            Some(_) => {
+                // different or no project
+                if to.index.project.is_none() {
+                    base + "../" + to.id()
+                } else {
+                    base + to.id()
+                }
+            }
+        }
     }
 }
 
@@ -138,7 +203,23 @@ impl Project {
                 posts.push(Post::load(&f, PostIndex { index: posts.len(), project: Some(index) })?);
             }
         }
-        Ok(Project { posts, index, id: path.file_name().unwrap().to_str().unwrap().to_string() })
+        Ok(Project { posts, index, path: path.clone(),
+                     id: path.file_name().unwrap()
+                         .to_str().unwrap().to_string() })
+    }
+
+    fn find_post_from_path(&self, iter: Iter) -> Option<&Post> {
+        let mut path = self.path.clone();
+        for c in iter {
+            path.push(c);
+        }
+
+        for post in &self.posts {
+            if post.path == path {
+                return Some(post);
+            }
+        }
+        return None;
     }
 }
 
@@ -166,6 +247,7 @@ impl Post {
 
         Ok(Post {
             index, title, published, last_edit,
+            path: filename.to_path_buf(),
             orgfile: f,
             extra_css: vec![]
         })
@@ -175,7 +257,7 @@ impl Post {
         &self.orgfile.filename
     }
 
-    pub fn content(&self, context: &RenderContext) -> Result<String, OrgLoadError> {
+    pub fn content(&self, context: &RenderContext) -> Result<String, GenerationError> {
         let mut handler = OrgHTMLHandler::new(context);
         self.orgfile.to_html(&mut handler)
     }

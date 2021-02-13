@@ -1,4 +1,5 @@
 use orgize::{Element, Org, Event};
+use orgize::elements;
 use orgize::export::{DefaultHtmlHandler, HtmlHandler, HtmlEscape};
 use std::collections::HashMap;
 use std::io::{Error as IOError, Write};
@@ -7,7 +8,8 @@ use std::path::Path;
 use std::fs;
 use chrono::naive;
 
-use super::context::RenderContext;
+use super::GenerationError;
+use super::context::{RenderContext, ResolvedInternalLink};
 
 #[derive(Debug)]
 pub enum OrgLoadError {
@@ -47,23 +49,67 @@ impl<'a> OrgHTMLHandler<'a> {
         OrgHTMLHandler { context: Some(context),
                          fallback: DefaultHtmlHandler::default() }
     }
+
+    /// return true if the fallback rendering should be used
+    fn write_link <W: Write>(&mut self, w: &mut W, link: &elements::Link) -> Result<bool, GenerationError> {
+        let context = self.context.unwrap();
+
+        let mut link_it = link.path.split(":");
+        let link_type = link_it.next();
+        let link_path = link_it.next().unwrap();
+
+        if link_it.next().is_some() {
+            println!("Found link to a section ({}), which is not supported yet. The link will simply point to the file", link.path);
+        }
+
+        if link_type.is_none() {
+            println!("Warning: Link {} in {} has no type. It will not be resolved", link.path, context.post.unwrap().id());
+            return Ok(true);
+        }
+
+        match link_type.unwrap() {
+            // external links don't need to be resolved
+            "https" | "http" | "mailto" => return Ok(true),
+            "file" => {
+                match context.resolve_link(&link_path)? {
+                    ResolvedInternalLink::Post(target) => {
+                        write!(w, "<a href=\"{}\">{}</a>",
+                               HtmlEscape(&target),
+                               HtmlEscape(link.desc.as_ref().map_or(target.as_str(), |s| &s)))?;
+                    },
+                    ResolvedInternalLink::Image(target) => {
+                        if let Some(desc) = link.desc.as_ref() {
+                            write!(w, "<img src=\"{}\" alt=\"{}\">",
+                                   HtmlEscape(&target),
+                                   HtmlEscape(&desc))?;
+                        } else {
+                            write!(w, "<img src=\"{}\">",
+                                   HtmlEscape(&target))?;
+                        }
+                    }
+                }
+            },
+            lt => {
+                println!("Warning: Unknown link type {} in file {}. Link will not be resolved", lt, context.post.unwrap().id());
+                return Ok(true);
+            }
+        };
+        Ok(false)
+    }
 }
 
-impl HtmlHandler<OrgLoadError> for OrgHTMLHandler<'_> {
-    fn start<W: Write>(&mut self, mut w: W, element: &Element) -> Result<(), OrgLoadError> {
+impl HtmlHandler<GenerationError> for OrgHTMLHandler<'_> {
+    fn start<W: Write>(&mut self, mut w: W, element: &Element) -> Result<(), GenerationError> {
         match element {
-            Element::Link(link) => write!(
-                w,
-                "<a href=\"{}\">{}</a>",
-                HtmlEscape(&link.path), // resolve link here
-                HtmlEscape(link.desc.as_ref().unwrap_or(&link.path)),
-            )?,
+            Element::Link(link) => if self.context.is_none() || self.write_link(&mut w, &link)? {
+                self.fallback.start(w, element)?;
+            },
             _ => self.fallback.start(w, element)?
-        }
+        };
         Ok(())
     }
 
-    fn end<W: Write>(&mut self, w: W, element: &Element) -> Result<(), OrgLoadError> {
+    fn end<W: Write>(&mut self, w: W, element: &Element) -> Result<(), GenerationError> {
         match element {
             _ => self.fallback.end(w, element)?
         }
@@ -100,7 +146,7 @@ impl OrgFile {
         preamble
     }
 
-    pub fn to_html<T>(&self, handler: &mut T) -> Result<String, OrgLoadError> where T: HtmlHandler<OrgLoadError> {
+    pub fn to_html<T>(&self, handler: &mut T) -> Result<String, GenerationError> where T: HtmlHandler<GenerationError> {
         let parser = Org::parse(&self.contents);
         let mut writer = Vec::new();
         parser.write_html_custom(&mut writer, handler)?;

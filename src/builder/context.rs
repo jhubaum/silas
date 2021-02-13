@@ -2,14 +2,22 @@ use super::website::{Website, Post};
 use super::GenerationError;
 use serde::Serialize;
 
+use std::cell::RefCell;
+
 use std::fs;
 use std::fs::File;
 
 /// the central struct for post serialization and rendering
-#[derive(Default)]
 pub struct RenderContext<'a> {
-    website: Option<&'a Website>,
-    post: Option<&'a Post>
+    pub website: Option<&'a Website>,
+    pub post: Option<&'a Post>,
+    pub folder_out: &'a str,
+    image_deps: RefCell<Vec<String>>
+}
+
+pub enum ResolvedInternalLink {
+    Post(String),
+    Image(String)
 }
 
 #[derive(Serialize)]
@@ -22,16 +30,26 @@ pub struct SerializedPost {
     content: String,
     title: String,
     heading: String,
-    css: Vec<String>
+    css: Vec<String>,
+    id: String
+}
+
+impl Default for RenderContext<'_> {
+    fn default() -> Self {
+        RenderContext { website: None, post: None,
+                        folder_out: ".", image_deps: RefCell::new(Vec::new()) }
+    }
 }
 
 impl<'a> RenderContext<'a> {
-    pub fn new(website: &'a Website) -> Self {
-        RenderContext { website: Some(website), post: None }
+    pub fn new(website: &'a Website, folder_out: &'a str) -> Self {
+        RenderContext { website: Some(website), post: None,
+                        folder_out, image_deps: RefCell::new(Vec::new()) }
     }
 
     pub fn set_target(&mut self, post: &'a Post) {
-       self.post = Some(post);
+        self.post = Some(post);
+        self.image_deps.borrow_mut().clear();
     }
 
     pub fn create_file(&self, basepath: &str) -> Result<File, GenerationError> {
@@ -39,7 +57,6 @@ impl<'a> RenderContext<'a> {
         if fs::metadata(&filename).is_ok() {
             return Err(GenerationError::Duplicate);
         }
-        println!("Rendering {}", filename);
         fs::create_dir_all(&filename)?;
         let filename = filename + "/index.html";
         Ok(File::create(&filename)?)
@@ -63,8 +80,21 @@ impl<'a> RenderContext<'a> {
             content: post.content(&self)?,
             title: post.title.clone() + " | Johannes Huwald",
             heading: post.title.clone(),
-            css: css_args
+            css: css_args,
+            id: post.id().to_string()
         })
+    }
+
+    pub fn copy_images(&self) -> Result<(), GenerationError> {
+        for img in self.image_deps.borrow().iter() {
+            let origin = self.post.unwrap().path
+                             .parent().unwrap()
+                             .to_str().unwrap().to_string() + "/" + &img;
+            println!("Origin: {:?}", origin);
+            fs::copy(origin,
+                     self.url(self.folder_out.to_string()) + "/" + &img)?;
+        }
+        Ok(())
     }
 
     fn resolve_css_path(&self, filename: &str) -> String {
@@ -89,7 +119,44 @@ impl<'a> RenderContext<'a> {
         }
     }
 
-    fn resolve_link(&self, origin: &Post, link: &str) -> String {
-        String::from("The next thing to do!")
+    pub fn resolve_link(&self, link: &str) -> Result<ResolvedInternalLink, GenerationError> {
+        match link.split(".").last().unwrap() {
+            "org" => self.resolve_post_link(link),
+            "png" | "jpeg" => self.resolve_image_link(link),
+            t => Err(GenerationError::UnknownLinkType(t.to_string()))
+        }
+    }
+
+    fn resolve_post_link(&self, link: &str) -> Result<ResolvedInternalLink, GenerationError> {
+        let other = self.find_post_from_relative_link(link);
+
+        if other.is_none() {
+            println!("{} points to no file", link);
+            return Err(GenerationError::InvalidLink);
+        }
+
+        let link = self.website.unwrap().get_relative_url(
+            self.post.unwrap(), other.unwrap()
+        );
+        Ok(ResolvedInternalLink::Post(link))
+    }
+
+    fn find_post_from_relative_link(&self, link: &str) -> Option<&Post> {
+        let mut path = self.post.unwrap().path.clone();
+        path.pop();
+        for part in link.split("/") {
+            match part {
+                "." => continue,
+                ".." => path.pop(),
+                _ => { path.push(part); true }
+            };
+        }
+
+        self.website.unwrap().find_post_from_path(path)
+    }
+
+    fn resolve_image_link(&self, link: &str) -> Result<ResolvedInternalLink, GenerationError> {
+        self.image_deps.borrow_mut().push(String::from(link));
+        Ok(ResolvedInternalLink::Image(String::from(link)))
     }
 }

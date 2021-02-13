@@ -2,6 +2,7 @@ use handlebars::{Handlebars, RenderContext, Helper, Context, JsonRender, HelperR
 
 use std::path::{Path, PathBuf};
 use std::io::{Error as IOError, Write};
+use std::string::FromUtf8Error;
 use std::fs;
 use std::fs::File;
 
@@ -31,7 +32,10 @@ pub enum GenerationError {
     IO(IOError),
     Rendering(RenderError),
     File(WebsiteLoadError),
-    Duplicate
+    Utf8(FromUtf8Error),
+    Duplicate,
+    InvalidLink,
+    UnknownLinkType(String)
 }
 
 #[derive(Debug)]
@@ -69,6 +73,12 @@ impl From<IOError> for GenerationError {
 impl From<RenderError> for GenerationError {
     fn from(err: RenderError) -> Self {
         GenerationError::Rendering(err)
+    }
+}
+
+impl From<FromUtf8Error> for GenerationError {
+    fn from(err: FromUtf8Error) -> Self {
+        GenerationError::Utf8(err)
     }
 }
 
@@ -122,7 +132,7 @@ impl Builder<'_> {
     pub fn generate_single_file(filename_in: &str, filename_out: &str) -> Result<(), SingleFileError> {
         let builder = Builder::new("")?;
 
-        let post = Post::load(&PathBuf::from(filename_in), PostIndex::none())?;
+        let post = Post::load(&PathBuf::from(filename_in), PostIndex::default())?;
 
         let mut context = context::RenderContext::default();
         context.set_target(&post);
@@ -144,7 +154,7 @@ impl Builder<'_> {
         fs::create_dir(output_folder_path)?;
 
         let website = Website::load(Path::new(&self.path))?;
-        let mut context = context::RenderContext::new(&website);
+        let mut context = context::RenderContext::new(&website, output_folder_path);
 
         // Copy css
         copy_folder("./theme/css", &(output_folder_path.to_string() + "/css"))?;
@@ -153,6 +163,7 @@ impl Builder<'_> {
             context.set_target(&page);
             let mut file = context.create_file(output_folder_path)?;
             write!(file, "{}", self.templates.render("page", &context.serialize()?)?)?;
+            context.copy_images()?;
         }
 
         let mut posts = Vec::new();
@@ -162,6 +173,7 @@ impl Builder<'_> {
                 let mut file = context.create_file(output_folder_path)?;
                 let ser = context.serialize()?;
                 write!(file, "{}", self.templates.render("post", &ser)?)?;
+                context.copy_images()?;
                 posts.push(ser);
             }
         }

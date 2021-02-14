@@ -6,6 +6,9 @@ use std::string::FromUtf8Error;
 use std::fs;
 use std::fs::File;
 
+
+use rss::{ChannelBuilder, ItemBuilder};
+
 use serde::ser::{Serialize, Serializer, SerializeStruct};
 
 pub mod website;
@@ -35,7 +38,8 @@ pub enum GenerationError {
     Utf8(FromUtf8Error),
     Duplicate,
     InvalidLink,
-    UnknownLinkType(String)
+    UnknownLinkType(String),
+    RSS(rss::Error)
 }
 
 #[derive(Debug)]
@@ -82,7 +86,13 @@ impl From<FromUtf8Error> for GenerationError {
     }
 }
 
-impl<T> From<T> for SingleFileError where T: Into<GenerationError> {
+impl From<rss::Error> for GenerationError {
+    fn from(err: rss::Error) -> Self {
+        GenerationError::RSS(err)
+    }
+}
+
+impl<T: Into<GenerationError>> From<T> for SingleFileError {
     fn from(err: T) -> Self {
         Self::GenerationError(err.into())
     }
@@ -166,10 +176,23 @@ impl Builder<'_> {
             context.copy_images()?;
         }
 
+        let mut channel = ChannelBuilder::default()
+            .title("Blog | Johannes Huwald")
+            .link("https://jhuwald.com/blog")
+            .description("Stuff I have written that you may read.")
+            .managing_editor(String::from("hey@jhuwald.com"))
+            .webmaster(String::from("hey@jhuwald.com"))
+            // .pubdate()
+            // .last_build_date()
+            .build()
+            .unwrap();
+
+
         let mut posts = Vec::new();
         for proj in website.projects.iter() {
             for post in proj.posts.iter() {
                 context.set_target(&post);
+                channel.items.push(post.into());
                 let mut file = context.create_file(output_folder_path)?;
                 let ser = context.serialize()?;
                 write!(file, "{}", self.templates.render("post", &ser)?)?;
@@ -177,10 +200,27 @@ impl Builder<'_> {
                 posts.push(ser);
             }
         }
+
+        let mut file = File::create(&(output_folder_path.to_string() + "/blog/feed"))?;
+        channel.write_to(file)?;
+
         let index = SerializedBlogIndex { posts };
         write!(index.file(output_folder_path)?, "{}",
                self.templates.render("project", &index)?)?;
         Ok(())
+    }
+}
+
+impl From<&Post> for rss::Item {
+    fn from(post: &Post) -> Self {
+        ItemBuilder::default()
+            .title(post.title.clone())
+            //.link(post.url)
+            //.description(post.summary)
+            .author(String::from("Johannes Huwald <hey@jhuwald.com>"))
+            //.pubdate(post.published.map_or(None, |d| Some(d.to_rfc2822())))
+            //.content(post.content)
+            .build().unwrap()
     }
 }
 

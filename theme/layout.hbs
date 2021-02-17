@@ -10,14 +10,15 @@
     <title>{{title}}</title>
   </head>
   <body>
+    {{log "layout" level="error"}}
     <nav class="nav">
       <div class="nav-container">
-        <a href="{{base-url}}" id="nav-title">
+        <a href="{{layout.base-url}}" id="nav-title">
           <h2>Johannes Huwald</h2>
         </a>
         <ul>
-          {{#each header as |link| }}
-          <li><a href="{{link.url}}">{{link.title}}></a></li>
+          {{#each layout.header as |link| }}
+          <li><a href="{{link.target}}">{{link.title}}</a></li>
           {{/each}}
         </ul>
       </div>

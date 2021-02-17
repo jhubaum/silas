@@ -1,5 +1,3 @@
-use clap;
-
 mod builder;
 use builder::Builder;
 

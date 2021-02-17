@@ -15,13 +15,44 @@ pub struct RenderContext<'a> {
     image_deps: RefCell<Vec<String>>
 }
 
+#[derive(Serialize)]
+pub struct LayoutInfo {
+    pub header: Vec<SerializedLink>,
+    pub base_url: String
+}
+
+impl LayoutInfo {
+    pub fn new(url: String) -> Self {
+        LayoutInfo { header: Vec::new(), base_url: url }
+    }
+
+    pub fn insert_header(&mut self, target: &str, title: String) {
+        let link = SerializedLink {
+            target: self.base_url.clone() + "/" + target,
+            title
+        };
+        self.header.push(link);
+    }
+
+    pub fn insert_post_in_header(&mut self, post: &Post) {
+        self.insert_header(post.id(), post.title.clone());
+    }
+}
+
+#[derive(Serialize)]
+pub struct SerializedLink {
+    target: String,
+    title: String
+}
+
 pub enum ResolvedInternalLink {
     Post(String),
     Image(String)
 }
 
 #[derive(Serialize)]
-pub struct SerializedPost {
+pub struct SerializedPost<'a> {
+    layout: &'a LayoutInfo,
     #[serde(skip_serializing_if = "Option::is_none")]
     published: Option<String>,
     #[serde(rename = "last-edit")]
@@ -62,7 +93,7 @@ impl<'a> RenderContext<'a> {
         Ok(File::create(&filename)?)
     }
 
-    pub fn serialize(&self) -> Result<SerializedPost, GenerationError> {
+    pub fn serialize(&self, layout: &'a LayoutInfo) -> Result<SerializedPost<'a>, GenerationError> {
         if self.post.is_none() {
             panic!("Post in RenderContext is uninitalized");
         }
@@ -75,6 +106,7 @@ impl<'a> RenderContext<'a> {
         }
 
         Ok(SerializedPost {
+            layout,
             published: post.published.clone(),
             last_edit: post.last_edit.clone(),
             content: post.content(&self)?,

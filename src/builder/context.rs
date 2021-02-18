@@ -1,6 +1,7 @@
 use super::website::{Website, Post};
 use super::GenerationError;
 use serde::Serialize;
+use std::cmp::Ordering;
 
 use std::cell::RefCell;
 
@@ -15,7 +16,7 @@ pub struct RenderContext<'a> {
     image_deps: RefCell<Vec<String>>
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone, PartialEq, Eq)]
 pub struct LayoutInfo {
     pub header: Vec<SerializedLink>,
     pub base_url: String
@@ -39,7 +40,7 @@ impl LayoutInfo {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone, PartialEq, Eq)]
 pub struct SerializedLink {
     target: String,
     title: String
@@ -50,20 +51,42 @@ pub enum ResolvedInternalLink {
     Image(String)
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Eq)]
 pub struct SerializedPost<'a> {
     layout: &'a LayoutInfo,
     #[serde(skip_serializing_if = "Option::is_none")]
-    published: Option<String>,
+    published: Option<chrono::naive::NaiveDate>,
     #[serde(rename = "last-edit")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    last_edit: Option<String>,
+    last_edit: Option<chrono::naive::NaiveDate>,
     content: String,
     title: String,
     heading: String,
     css: Vec<String>,
     id: String
 }
+
+impl Ord for SerializedPost<'_> {
+    fn cmp(&self, rhs: &Self) -> Ordering {
+        match self.published {
+            None => { return if rhs.published.is_none() {Ordering::Equal} else {Ordering::Greater} },
+            Some(d) => { return if rhs.published.is_none() {Ordering::Less} else {d.cmp(&rhs.published.unwrap())} }
+        }
+    }
+}
+
+impl PartialOrd for SerializedPost<'_> {
+    fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
+        Some(self.cmp(rhs))
+    }
+}
+
+impl PartialEq for SerializedPost<'_> {
+    fn eq(&self, rhs: &Self) -> bool {
+        self.published == rhs.published
+    }
+}
+
 
 impl Default for RenderContext<'_> {
     fn default() -> Self {
@@ -107,8 +130,8 @@ impl<'a> RenderContext<'a> {
 
         Ok(SerializedPost {
             layout,
-            published: post.published.clone(),
-            last_edit: post.last_edit.clone(),
+            published: post.published,
+            last_edit: post.last_edit,
             content: post.content(&self)?,
             title: post.title.clone() + " | Johannes Huwald",
             heading: post.title.clone(),

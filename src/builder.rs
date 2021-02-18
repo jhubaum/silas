@@ -1,5 +1,7 @@
 use handlebars::{Handlebars, RenderContext, Helper, Context, JsonRender, HelperResult, Output, RenderError, TemplateFileError};
 
+use std::collections::BinaryHeap;
+
 use std::path::{Path, PathBuf};
 use std::io::{Error as IOError, Write};
 use std::string::FromUtf8Error;
@@ -9,6 +11,8 @@ use std::fs::File;
 use rss::{ChannelBuilder, ItemBuilder};
 
 use serde::ser::{Serialize, Serializer, SerializeStruct};
+
+use chrono::naive::NaiveDate;
 
 pub mod website;
 pub mod org;
@@ -20,7 +24,9 @@ use org::OrgLoadError;
 fn render_date (h: &Helper, _: &Handlebars, _: &Context, _rc: &mut RenderContext, out: &mut dyn Output) -> HelperResult {
     let param = h.param(0).unwrap();
 
-    out.write(param.value().render().as_ref())?;
+    let date = param.value().render();
+    let date = NaiveDate::parse_from_str(date.as_ref(), "%Y-%m-%d").unwrap();
+    out.write(&date.format("%A, %d. %B %Y").to_string())?;
     Ok(())
 }
 
@@ -195,7 +201,7 @@ impl Builder<'_> {
             .unwrap();
 
 
-        let mut posts = Vec::new();
+        let mut posts = BinaryHeap::new();
         for proj in website.projects.iter() {
             for post in proj.posts.iter() {
                 context.set_target(&post);
@@ -211,7 +217,10 @@ impl Builder<'_> {
         let file = File::create(&(output_folder_path.to_string() + "/blog/feed"))?;
         channel.write_to(file)?;
 
-        let index = SerializedBlogIndex { posts, layout: &layout };
+        let mut p = Vec::new();
+        while let Some(post) = posts.pop() { p.push(post); }
+
+        let index = SerializedBlogIndex { posts: p, layout: &layout };
         write!(index.file(output_folder_path)?, "{}",
                self.templates.render("project", &index)?)?;
         Ok(())

@@ -117,7 +117,7 @@ impl HtmlHandler<GenerationError> for OrgHTMLHandler<'_> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OrgFile {
     pub filename: String,
     pub contents: String,

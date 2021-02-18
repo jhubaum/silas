@@ -10,7 +10,7 @@ edition = "2018"
 orgize = "0.8.4"
 syntect = "4.5.0"
 handlebars = "3.5.2"
-chrono = "0.4"
+chrono = { version="0.4", features = ["serde"] }
 serde = "1.0"
 clap = "2.33"
 rss = "1.10.0"

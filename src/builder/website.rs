@@ -2,6 +2,8 @@ use std::path::{Path, PathBuf, Iter};
 use std::io::{self, Error as IOError};
 use std::fs;
 
+use chrono::naive;
+
 
 use super::GenerationError;
 use super::org;
@@ -62,6 +64,7 @@ pub struct Project {
     path: PathBuf
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct PostIndex {
     pub index: usize,
     pub project: Option<ProjectIndex>
@@ -82,8 +85,8 @@ impl Default for PostIndex {
 pub struct Post {
     pub index: PostIndex,
     pub title: String,
-    pub published: Option<String>,
-    pub last_edit: Option<String>,
+    pub published: Option<naive::NaiveDate>,
+    pub last_edit: Option<naive::NaiveDate>,
     pub extra_css: Vec<String>,
     pub path: PathBuf,
     orgfile: OrgFile
@@ -229,14 +232,12 @@ impl Post {
 
         let published = match f.preamble.get("published") {
             None => None,
-            Some(d) => Some(org::parse_date(d)?
-                .format("%A, %-d %B, %Y").to_string())
+            Some(d) => Some(org::parse_date(d)?)
         };
 
         let last_edit = match f.preamble.get("last_edit") {
             None => None,
-            Some(d) => Some(org::parse_date(d)?
-                .format("%A, %-d %B, %Y").to_string())
+            Some(d) => Some(org::parse_date(d)?)
         };
 
 

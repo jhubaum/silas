@@ -22,7 +22,7 @@ hr {
 
 h1 {
     margin-bottom: 0px;
-    font-size: 2.8rem;
+    font-size: 2.1rem;
 }
 
 #date-published {
@@ -35,7 +35,7 @@ h1 {
 main,footer, .nav-container {
     display: block;
     margin: 0 auto;
-    width: 80%;
+    width: 60%;
 }
 
 .nav {
@@ -198,4 +198,11 @@ main {
         position:absolute;
         right:0
     }
+}
+
+.src {
+    color: var(--color-black);
+    background-color: var(--color-light-grey);
+    padding: 5px 10px;
+    border-radius: 5px;
 }

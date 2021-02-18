@@ -104,6 +104,7 @@ impl HtmlHandler<GenerationError> for OrgHTMLHandler<'_> {
             Element::Link(link) => if self.context.is_none() || self.write_link(&mut w, &link)? {
                 self.fallback.start(w, element)?;
             },
+            Element::Document { .. } => {  },
             _ => self.fallback.start(w, element)?
         };
         Ok(())
@@ -111,6 +112,7 @@ impl HtmlHandler<GenerationError> for OrgHTMLHandler<'_> {
 
     fn end<W: Write>(&mut self, w: W, element: &Element) -> Result<(), GenerationError> {
         match element {
+            Element::Document { .. } => {  },
             _ => self.fallback.end(w, element)?
         }
         Ok(())
@@ -167,6 +169,12 @@ impl OrgFile {
 
         let contents = String::from_utf8(fs::read(filename)?)?;
         let parser = Org::parse(&contents);
+
+        /*
+        for event in parser.iter() {
+            println!("{:?}", event);
+        }
+        */
 
         let preamble = OrgFile::extract_preamble(&parser, filename);
         let filename = filename.file_stem().unwrap()

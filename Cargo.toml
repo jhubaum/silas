@@ -8,8 +8,8 @@ edition = "2018"
 
 [dependencies]
 orgize = "0.8.4"
-syntect = "4.5.0"
 handlebars = "3.5.2"
+syntect = "4.5"
 chrono = { version="0.4", features = ["serde"] }
 serde = "1.0"
 clap = "2.33"

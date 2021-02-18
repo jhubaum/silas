@@ -19,6 +19,7 @@ pub struct RenderContext<'a> {
 #[derive(Serialize, Clone, PartialEq, Eq)]
 pub struct LayoutInfo {
     pub header: Vec<SerializedLink>,
+    #[serde(rename = "base-url")]
     pub base_url: String
 }
 
@@ -60,6 +61,8 @@ pub struct SerializedPost<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     last_edit: Option<chrono::naive::NaiveDate>,
     content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    summary: Option<&'a str>,
     title: String,
     heading: String,
     css: Vec<String>,
@@ -132,6 +135,7 @@ impl<'a> RenderContext<'a> {
             layout,
             published: post.published,
             last_edit: post.last_edit,
+            summary: post.summary(),
             content: post.content(&self)?,
             title: post.title.clone() + " | Johannes Huwald",
             heading: post.title.clone(),

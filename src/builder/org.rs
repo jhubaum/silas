@@ -125,7 +125,7 @@ pub struct OrgFile {
 }
 
 impl OrgFile {
-    fn extract_preamble(org: &Org) -> HashMap<String, String>{
+    fn extract_preamble(org: &Org, filename: &Path) -> HashMap<String, String>{
         let mut iter = org.iter();
         iter.next(); // Start document
         iter.next(); // Start section
@@ -136,9 +136,13 @@ impl OrgFile {
                 None => break,
                 Some(Event::End(_)) => continue,
                 Some(Event::Start(Element::Keyword(k))) => {
-                    preamble.insert(
-                        k.key.to_string().to_lowercase(),
-                        k.value.to_string());
+                    if k.value.len() == 0 {
+                        println!("Warning: encountered empty keyword '{}' while parsing org file {:?}", k.key, filename);
+                    } else {
+                        preamble.insert(
+                            k.key.to_string().to_lowercase(),
+                            k.value.to_string());
+                    }
                 },
                 Some(Event::Start(_)) => break
             };
@@ -164,10 +168,10 @@ impl OrgFile {
         let contents = String::from_utf8(fs::read(filename)?)?;
         let parser = Org::parse(&contents);
 
+        let preamble = OrgFile::extract_preamble(&parser, filename);
         let filename = filename.file_stem().unwrap()
                                .to_str().unwrap().to_string();
 
-        let preamble = OrgFile::extract_preamble(&parser);
         Ok(OrgFile { filename, preamble, contents })
     }
 }

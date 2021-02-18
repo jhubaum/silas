@@ -254,6 +254,13 @@ impl Post {
         })
     }
 
+    pub fn summary(&self) -> Option<&str> {
+        match self.orgfile.preamble.get("summary") {
+            None => None,
+            Some(s) => Some(&s)
+        }
+    }
+
     pub fn id(&self) -> &str {
         &self.orgfile.filename
     }

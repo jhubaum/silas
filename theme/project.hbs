@@ -5,7 +5,7 @@
     {{#each posts as |post|}}
     <a href="{{post.id}}" class="catalogue-item">
     <div>
-      <h2 class="catalogue-title">{{post.title}}</h2>
+      <h2 class="catalogue-title">{{post.heading}}</h2>
       {{#if post.published}}
       <time class="catalogue-date" datetime="{{post.published}}">{{date post.published}}</time>
       {{else}}

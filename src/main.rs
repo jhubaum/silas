@@ -1,5 +1,5 @@
 mod builder;
-use builder::Builder;
+use builder::{ReleaseBuilder, PreviewBuilder};
 
 fn main() {
     let matches = clap::App::new("Silas")
@@ -18,13 +18,13 @@ fn main() {
         .get_matches();
 
     if matches.is_present("file") {
-        match Builder::generate_single_file(matches.value_of("PATH").unwrap(), "out.html") {
+        match ReleaseBuilder::generate_single_file(matches.value_of("PATH").unwrap(), "out.html") {
             Ok(()) => println!("Wrote {} to out.html",
                            matches.value_of("PATH").unwrap()),
             Err(err) => panic!("{:?}", err)
         }
     } else {
-        let mut builder = match Builder::new(matches.value_of("PATH").unwrap()) {
+        let mut builder = match ReleaseBuilder::new(matches.value_of("PATH").unwrap()) {
             Ok(builder) => builder,
             Err(error) => panic!("Couldn't load builder: {:?}", error)
         };

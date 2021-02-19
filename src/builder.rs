@@ -109,9 +109,18 @@ impl From<InstantiationError> for SingleFileError {
     }
 }
 
-pub struct Builder<'a> {
+pub struct PreviewBuilder<'a> {
     templates: Handlebars<'a>,
     path: String
+}
+
+pub struct ReleaseBuilder<'a> {
+    templates: Handlebars<'a>,
+    path: String
+}
+
+pub trait Builder {
+    fn load(blog_path: &str) -> Result<(), InstantiationError>;
 }
 
 fn copy_folder(folder: &str, target: &str) -> Result<(), IOError> {
@@ -128,7 +137,7 @@ fn copy_folder(folder: &str, target: &str) -> Result<(), IOError> {
     Ok(())
 }
 
-impl Builder<'_> {
+impl ReleaseBuilder<'_> {
     pub fn new(blog_path: &str) -> Result<Self, InstantiationError> {
         let mut templates = Handlebars::new();
         templates.register_template_file("layout", "./theme/layout.hbs")?;
@@ -138,14 +147,14 @@ impl Builder<'_> {
 
         templates.register_helper("date", Box::new(render_date));
 
-        Ok(Builder {
+        Ok(ReleaseBuilder {
             templates,
             path: String::from(blog_path)
         })
     }
 
     pub fn generate_single_file(filename_in: &str, filename_out: &str) -> Result<(), SingleFileError> {
-        let builder = Builder::new("")?;
+        let builder = ReleaseBuilder::new("")?;
 
         let post = Post::load(&PathBuf::from(filename_in), PostIndex::default())?;
 

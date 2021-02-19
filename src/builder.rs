@@ -53,13 +53,11 @@ pub enum SingleFileError {
     GenerationError(GenerationError)
 }
 
-
 impl From<TemplateFileError> for InstantiationError {
     fn from(err: TemplateFileError) -> Self {
         InstantiationError::TemplateNotFound(err)
     }
 }
-
 
 impl From<WebsiteLoadError> for GenerationError {
     fn from(err: WebsiteLoadError) -> Self {
@@ -109,65 +107,11 @@ impl From<InstantiationError> for SingleFileError {
     }
 }
 
-pub struct PreviewBuilder<'a> {
-    templates: Handlebars<'a>,
-    path: String
-}
+pub trait Builder: Sized {
+    fn new() -> Result<Self, TemplateFileError>;
+    fn templates(&self) -> &Handlebars;
 
-pub struct ReleaseBuilder<'a> {
-    templates: Handlebars<'a>,
-    path: String
-}
-
-pub trait Builder {
-    fn load(blog_path: &str) -> Result<(), InstantiationError>;
-}
-
-fn copy_folder(folder: &str, target: &str) -> Result<(), IOError> {
-    if fs::metadata(target).is_ok() {
-        panic!{"copy_folder: target '{}' already exists", target};
-    }
-    fs::create_dir_all(target)?;
-
-    for entry in fs::read_dir(folder)? {
-        let entry = entry?;
-        fs::copy(entry.path(), target.to_string() + "/" + entry.file_name().to_str().unwrap())?;
-    }
-
-    Ok(())
-}
-
-impl ReleaseBuilder<'_> {
-    pub fn new(blog_path: &str) -> Result<Self, InstantiationError> {
-        let mut templates = Handlebars::new();
-        templates.register_template_file("layout", "./theme/layout.hbs")?;
-        templates.register_template_file("page", "./theme/page.hbs")?;
-        templates.register_template_file("post", "./theme/post.hbs")?;
-        templates.register_template_file("project", "./theme/project.hbs")?;
-
-        templates.register_helper("date", Box::new(render_date));
-
-        Ok(ReleaseBuilder {
-            templates,
-            path: String::from(blog_path)
-        })
-    }
-
-    pub fn generate_single_file(filename_in: &str, filename_out: &str) -> Result<(), SingleFileError> {
-        let builder = ReleaseBuilder::new("")?;
-
-        let post = Post::load(&PathBuf::from(filename_in), PostIndex::default())?;
-
-        let mut context = context::RenderContext::default();
-        context.set_target(&post);
-
-        let mut file = File::create(&filename_out)?;
-        let layout = context::LayoutInfo::new(String::from("INVALID_URL"));
-        write!(file, "{}", builder.templates.render("post", &context.serialize(&layout)?)?)?;
-        Ok(())
-    }
-
-    pub fn generate(&mut self, output_folder_path: &str, delete_existing: bool) -> Result<(), GenerationError> {
+    fn prepare_folder(&self, output_folder_path: &str, delete_existing: bool) -> Result<(), IOError> {
         if fs::metadata(output_folder_path).is_ok() {
             if !delete_existing {
                 panic!("Target folder '{}' is non-empty", output_folder_path);
@@ -177,9 +121,24 @@ impl ReleaseBuilder<'_> {
             fs::remove_dir_all(output_folder_path)?;
         }
         fs::create_dir(output_folder_path)?;
+        Ok(())
+    }
 
-        let website = Website::load(Path::new(&self.path))?;
-        let mut context = context::RenderContext::new(&website, output_folder_path);
+    fn generate_single_file(&self, filename_in: &str, filename_out: &str) -> Result<(), SingleFileError> {
+        let post = Post::load(&PathBuf::from(filename_in), PostIndex::default())?;
+
+        let mut context = context::RenderContext::default();
+        context.set_target(&post);
+
+        let mut file = File::create(&filename_out)?;
+        let layout = context::LayoutInfo::new(String::from("INVALID_URL"));
+        write!(file, "{}", self.templates().render("post", &context.serialize(&layout)?)?)?;
+        Ok(())
+    }
+
+    fn generate(&self, website: &Website, output_folder_path: &str) -> Result<(), GenerationError> {
+        let templates = self.templates();
+        let mut context = context::RenderContext::new(website, output_folder_path);
 
         let mut layout = context::LayoutInfo::new(output_folder_path.to_string());
 
@@ -194,7 +153,7 @@ impl ReleaseBuilder<'_> {
         for page in website.pages.iter() {
             context.set_target(&page);
             let mut file = context.create_file(output_folder_path)?;
-            write!(file, "{}", self.templates.render("page", &context.serialize(&layout)?)?)?;
+            write!(file, "{}", templates.render("page", &context.serialize(&layout)?)?)?;
             context.copy_images()?;
         }
 
@@ -217,7 +176,7 @@ impl ReleaseBuilder<'_> {
                 channel.items.push(post.into());
                 let mut file = context.create_file(output_folder_path)?;
                 let ser = context.serialize(&layout)?;
-                write!(file, "{}", self.templates.render("post", &ser)?)?;
+                write!(file, "{}", templates.render("post", &ser)?)?;
                 context.copy_images()?;
                 posts.push(ser);
             }
@@ -231,9 +190,62 @@ impl ReleaseBuilder<'_> {
 
         let index = SerializedBlogIndex { posts: p, layout: &layout };
         write!(index.file(output_folder_path)?, "{}",
-               self.templates.render("project", &index)?)?;
+               templates.render("project", &index)?)?;
         Ok(())
     }
+}
+
+pub struct ReleaseBuilder<'a> {
+    templates: Handlebars<'a>
+}
+
+pub struct PreviewBuilder<'a> {
+    templates: Handlebars<'a>
+}
+
+fn load_templates<'a>() -> Result<Handlebars<'a>, TemplateFileError> {
+    let mut templates = Handlebars::new();
+    templates.register_template_file("layout", "./theme/layout.hbs")?;
+    templates.register_template_file("page", "./theme/page.hbs")?;
+    templates.register_template_file("post", "./theme/post.hbs")?;
+    templates.register_template_file("project", "./theme/project.hbs")?;
+
+    templates.register_helper("date", Box::new(render_date));
+    Ok(templates)
+}
+
+impl Builder for ReleaseBuilder<'_> {
+    fn new() -> Result<Self, TemplateFileError> {
+        Ok(ReleaseBuilder { templates: load_templates()? })
+    }
+
+    fn templates(&self) -> &Handlebars {
+        &self.templates
+    }
+}
+
+impl Builder for PreviewBuilder<'_> {
+    fn new() -> Result<Self, TemplateFileError> {
+        Ok(PreviewBuilder { templates: load_templates()? })
+    }
+
+    fn templates(&self) -> &Handlebars {
+        &self.templates
+    }
+}
+
+fn copy_folder(folder: &str, target: &str) -> Result<(), IOError> {
+    if fs::metadata(target).is_ok() {
+        panic!{"copy_folder: target '{}' already exists", target};
+    }
+    fs::create_dir_all(target)?;
+
+    for entry in fs::read_dir(folder)? {
+        let entry = entry?;
+        fs::copy(entry.path(), target.to_string() + "/" + entry.file_name().to_str().unwrap())?;
+    }
+
+    Ok(())
 }
 
 impl From<&Post> for rss::Item {

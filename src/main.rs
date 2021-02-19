@@ -1,5 +1,31 @@
 mod builder;
-use builder::{ReleaseBuilder, PreviewBuilder};
+use builder::{ReleaseBuilder, PreviewBuilder, Builder};
+use builder::website::Website;
+use std::path::Path;
+
+fn execute<T: Builder>(matches: &clap::ArgMatches) -> Result<(), builder::GenerationError> {
+    let builder = match T::new() {
+        Err(err) => panic!("Unable to load theme: {:?}", err),
+        Ok(builder) => builder
+    };
+
+    let path = matches.value_of("PATH").unwrap();
+
+    if matches.is_present("file") {
+        match builder.generate_single_file(path, "out.html") {
+            Ok(()) => println!("Wrote {} to out.html",
+                           matches.value_of("PATH").unwrap()),
+            Err(err) => panic!("{:?}", err)
+        }
+    } else {
+        let output_path = "generated";
+        let website = Website::load(Path::new(path))?;
+
+        builder.prepare_folder(&output_path, true)?;
+        builder.generate(&website, &output_path)?;
+    }
+    Ok(())
+}
 
 fn main() {
     let matches = clap::App::new("Silas")
@@ -15,24 +41,21 @@ fn main() {
              .help("Generate the html output for a single org file")
              .required(false)
              .takes_value(false))
+        .arg(clap::Arg::with_name("preview")
+             .long("preview")
+             .help("Render the blog in preview mode")
+             .required(false)
+             .takes_value(false))
         .get_matches();
 
-    if matches.is_present("file") {
-        match ReleaseBuilder::generate_single_file(matches.value_of("PATH").unwrap(), "out.html") {
-            Ok(()) => println!("Wrote {} to out.html",
-                           matches.value_of("PATH").unwrap()),
-            Err(err) => panic!("{:?}", err)
-        }
+    let res = if matches.is_present("preview") {
+        execute::<PreviewBuilder>(&matches)
     } else {
-        let mut builder = match ReleaseBuilder::new(matches.value_of("PATH").unwrap()) {
-            Ok(builder) => builder,
-            Err(error) => panic!("Couldn't load builder: {:?}", error)
-        };
+        execute::<ReleaseBuilder>(&matches)
+    };
 
-        if let Err(error) = builder.generate("generated", true) {
-            panic!("Couldn't generate site: {:?}", error);
-        } else {
-            println!("Generation successful!");
-        }
-    }
+    match res {
+        Ok(()) => println!("Generation successful!"),
+        Err(err) => panic!("Couldn't generate site: {:?}", err)
+    };
 }

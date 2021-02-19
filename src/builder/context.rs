@@ -171,13 +171,6 @@ impl<'a> RenderContext<'a> {
         }
     }
 
-    fn website_url(&self) -> String {
-        match self.website {
-            None => String::from(""),
-            Some(w) => w.url()
-        }
-    }
-
     pub fn resolve_link(&self, link: &str) -> Result<ResolvedInternalLink, GenerationError> {
         match link.split(".").last().unwrap() {
             "org" => self.resolve_post_link(link),

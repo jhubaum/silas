@@ -4,7 +4,7 @@ use builder::website::Website;
 use std::path::Path;
 
 fn execute<T: Builder>(matches: &clap::ArgMatches) -> Result<(), builder::GenerationError> {
-    let builder = match T::new() {
+    let builder = match T::new("generated") {
         Err(err) => panic!("Unable to load theme: {:?}", err),
         Ok(builder) => builder
     };
@@ -18,11 +18,10 @@ fn execute<T: Builder>(matches: &clap::ArgMatches) -> Result<(), builder::Genera
             Err(err) => panic!("{:?}", err)
         }
     } else {
-        let output_path = "generated";
         let website = Website::load(Path::new(path))?;
 
-        builder.prepare_folder(&output_path, true)?;
-        builder.generate(&website, &output_path)?;
+        builder.prepare_folder(true)?;
+        builder.generate(&website)?;
     }
     Ok(())
 }

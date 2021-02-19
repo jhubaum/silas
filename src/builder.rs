@@ -108,19 +108,21 @@ impl From<InstantiationError> for SingleFileError {
 }
 
 pub trait Builder: Sized {
-    fn new() -> Result<Self, TemplateFileError>;
+    fn new(output_folder_path: &str) -> Result<Self, TemplateFileError>;
     fn templates(&self) -> &Handlebars;
+    fn output_path(&self) -> &str;
+    fn base_url(&self) -> &str;
 
-    fn prepare_folder(&self, output_folder_path: &str, delete_existing: bool) -> Result<(), IOError> {
-        if fs::metadata(output_folder_path).is_ok() {
+    fn prepare_folder(&self, delete_existing: bool) -> Result<(), IOError> {
+        if fs::metadata(self.output_path()).is_ok() {
             if !delete_existing {
-                panic!("Target folder '{}' is non-empty", output_folder_path);
+                panic!("Target folder '{}' is non-empty", self.output_path());
             }
 
             println!("Cleared previous result");
-            fs::remove_dir_all(output_folder_path)?;
+            fs::remove_dir_all(self.output_path())?;
         }
-        fs::create_dir(output_folder_path)?;
+        fs::create_dir(self.output_path())?;
         Ok(())
     }
 
@@ -131,16 +133,17 @@ pub trait Builder: Sized {
         context.set_target(&post);
 
         let mut file = File::create(&filename_out)?;
-        let layout = context::LayoutInfo::new(String::from("INVALID_URL"));
+        let layout = context::LayoutInfo::new(self.base_url().to_string());
         write!(file, "{}", self.templates().render("post", &context.serialize(&layout)?)?)?;
         Ok(())
     }
 
-    fn generate(&self, website: &Website, output_folder_path: &str) -> Result<(), GenerationError> {
+    fn generate(&self, website: &Website) -> Result<(), GenerationError> {
+        let output_folder_path = self.output_path();
         let templates = self.templates();
         let mut context = context::RenderContext::new(website, output_folder_path);
 
-        let mut layout = context::LayoutInfo::new(output_folder_path.to_string());
+        let mut layout = context::LayoutInfo::new(self.base_url().to_string());
 
         // Copy css
         copy_folder("./theme/css", &(output_folder_path.to_string() + "/css"))?;
@@ -196,11 +199,14 @@ pub trait Builder: Sized {
 }
 
 pub struct ReleaseBuilder<'a> {
-    templates: Handlebars<'a>
+    templates: Handlebars<'a>,
+    output_path: String
 }
 
 pub struct PreviewBuilder<'a> {
-    templates: Handlebars<'a>
+    templates: Handlebars<'a>,
+    output_path: String,
+    url: String,
 }
 
 fn load_templates<'a>() -> Result<Handlebars<'a>, TemplateFileError> {
@@ -215,22 +221,49 @@ fn load_templates<'a>() -> Result<Handlebars<'a>, TemplateFileError> {
 }
 
 impl Builder for ReleaseBuilder<'_> {
-    fn new() -> Result<Self, TemplateFileError> {
-        Ok(ReleaseBuilder { templates: load_templates()? })
+    fn new(output_path: &str) -> Result<Self, TemplateFileError> {
+        Ok(ReleaseBuilder {
+            output_path: output_path.to_string(),
+            templates: load_templates()?
+        })
     }
 
     fn templates(&self) -> &Handlebars {
         &self.templates
+    }
+
+    fn output_path(&self) -> &str {
+        &self.output_path
+    }
+
+    fn base_url(&self) -> &str {
+        "https://www.jhuwald.com"
     }
 }
 
 impl Builder for PreviewBuilder<'_> {
-    fn new() -> Result<Self, TemplateFileError> {
-        Ok(PreviewBuilder { templates: load_templates()? })
+    fn new(output_path: &str) -> Result<Self, TemplateFileError> {
+        let url = Path::new(output_path).to_str().unwrap();
+        let url = fs::canonicalize(&url).unwrap();
+        let url = url.to_str().unwrap().to_string();
+
+        Ok(PreviewBuilder {
+            output_path: output_path.to_string(),
+            templates: load_templates()?,
+            url
+        })
     }
 
     fn templates(&self) -> &Handlebars {
         &self.templates
+    }
+
+    fn output_path(&self) -> &str {
+        &self.output_path
+    }
+
+    fn base_url(&self) -> &str {
+        &self.url
     }
 }
 

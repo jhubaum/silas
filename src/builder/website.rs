@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf, Iter};
 use std::io::{self, Error as IOError};
 use std::fs;
+use std::collections::HashMap;
 
 use chrono::naive;
 
@@ -47,7 +48,7 @@ impl From<IOError> for ProjectLoadError {
 }
 
 pub struct Website {
-    pub pages: Vec<Post>,
+    pub pages: HashMap<String, Post>,
     pub projects: Vec<Project>,
     pub path: PathBuf,
 }
@@ -95,7 +96,7 @@ pub struct Post {
 impl Website {
     pub fn load(path: &Path) -> Result<Self, WebsiteLoadError> {
         let mut website = Website {
-            pages: vec![],
+            pages: HashMap::new(),
             projects: vec![],
             path: path.to_path_buf()
         };
@@ -108,7 +109,8 @@ impl Website {
                     // create index file here
                 } else if p.extension().unwrap() == "org" {
                     let post = Post::load(&p, PostIndex::without_project(website.pages.len()))?;
-                    website.pages.push(post);
+                    let id = post.id().to_string();
+                    website.pages.insert(id, post);
                 }
             }
         }
@@ -147,7 +149,7 @@ impl Website {
         let mut path = self.path.clone();
         path.push(proj_name);
 
-        for p in &self.pages {
+        for p in self.pages.values() {
             if p.path == path {
                 return Some(p);
             }

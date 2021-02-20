@@ -191,7 +191,7 @@ pub trait Builder: Sized {
         // Copy css
         copy_folder("./theme/css", &(output_folder_path.to_string() + "/css"))?;
 
-        for page in website.pages.iter() {
+        for page in website.pages.values() {
             if !self.perform_page_check(page) {
                 continue;
             }
@@ -200,7 +200,13 @@ pub trait Builder: Sized {
         }
         layout.insert_header("blog", String::from("Blog"));
 
-        for page in website.pages.iter() {
+        // render about.org as website index
+        context.set_index(website.pages.get("about").unwrap());
+        let mut file = context.create_file(output_folder_path)?;
+        write!(file, "{}", templates.render("page", &context.serialize(&layout)?)?)?;
+        context.copy_images()?;
+
+        for page in website.pages.values() {
             if !self.perform_page_check(page) {
                 continue;
             }

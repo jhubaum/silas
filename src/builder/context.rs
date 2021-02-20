@@ -13,7 +13,8 @@ pub struct RenderContext<'a> {
     pub website: Option<&'a Website>,
     pub post: Option<&'a Post>,
     pub folder_out: &'a str,
-    image_deps: RefCell<Vec<String>>
+    image_deps: RefCell<Vec<String>>,
+    index: bool
 }
 
 #[derive(Serialize, Clone, PartialEq, Eq)]
@@ -93,25 +94,31 @@ impl PartialEq for SerializedPost<'_> {
 
 impl Default for RenderContext<'_> {
     fn default() -> Self {
-        RenderContext { website: None, post: None,
+        RenderContext { website: None, post: None, index: false,
                         folder_out: ".", image_deps: RefCell::new(Vec::new()) }
     }
 }
 
 impl<'a> RenderContext<'a> {
     pub fn new(website: &'a Website, folder_out: &'a str) -> Self {
-        RenderContext { website: Some(website), post: None,
+        RenderContext { website: Some(website), post: None, index: false,
                         folder_out, image_deps: RefCell::new(Vec::new()) }
     }
 
     pub fn set_target(&mut self, post: &'a Post) {
+        self.index = false;
         self.post = Some(post);
         self.image_deps.borrow_mut().clear();
     }
 
+    pub fn set_index(&mut self, post: &'a Post) {
+        self.set_target(post);
+        self.index = true;
+    }
+
     pub fn create_file(&self, basepath: &str) -> Result<File, GenerationError> {
         let filename = self.url(basepath.to_string());
-        if fs::metadata(&filename).is_ok() {
+        if !self.index && fs::metadata(&filename).is_ok() {
             return Err(GenerationError::Duplicate);
         }
         fs::create_dir_all(&filename)?;
@@ -157,6 +164,9 @@ impl<'a> RenderContext<'a> {
     }
 
     fn resolve_css_path(&self, filename: &str) -> String {
+        if self.index {
+            return String::from("css/") + filename;
+        }
         match self.post.unwrap().index.project {
             None => String::from("../css/") + filename,
             Some(_) => String::from("../../css/") + filename
@@ -164,6 +174,9 @@ impl<'a> RenderContext<'a> {
     }
 
     fn url(&self, base: String) -> String {
+        if self.index {
+            return base;
+        }
         let post = &self.post.unwrap();
         match post.index.project {
             None => base + "/" + &post.id(),

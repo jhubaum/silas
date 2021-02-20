@@ -21,7 +21,7 @@ pub struct RenderContext<'a> {
 pub struct LayoutInfo {
     pub header: Vec<SerializedLink>,
     #[serde(rename = "base-url")]
-    pub base_url: String
+    pub base_url: String,
 }
 
 impl LayoutInfo {
@@ -67,6 +67,7 @@ pub struct SerializedPost<'a> {
     title: String,
     heading: String,
     css: Vec<String>,
+    favicon: String,
     id: String
 }
 
@@ -101,8 +102,10 @@ impl Default for RenderContext<'_> {
 
 impl<'a> RenderContext<'a> {
     pub fn new(website: &'a Website, folder_out: &'a str) -> Self {
-        RenderContext { website: Some(website), post: None, index: false,
-                        folder_out, image_deps: RefCell::new(Vec::new()) }
+        RenderContext {
+            website: Some(website), post: None, index: false,
+            folder_out, image_deps: RefCell::new(Vec::new())
+        }
     }
 
     pub fn set_target(&mut self, post: &'a Post) {
@@ -133,9 +136,10 @@ impl<'a> RenderContext<'a> {
 
         let post = self.post.unwrap();
 
-        let mut css_args: Vec<String> = vec![self.resolve_css_path("style.css")];
+        let mut css_args: Vec<String> = vec![self.resolve_to_root("css/style.css")];
         for css in post.extra_css.iter() {
-            css_args.push(self.resolve_css_path(&css));
+            let css = String::from("css/") + &css;
+            css_args.push(self.resolve_to_root(&css));
         }
 
         Ok(SerializedPost {
@@ -147,6 +151,7 @@ impl<'a> RenderContext<'a> {
             title: post.title.clone() + " | Johannes Huwald",
             heading: post.title.clone(),
             css: css_args,
+            favicon: self.resolve_to_root("favicon.png"),
             id: post.id().to_string()
         })
     }
@@ -163,13 +168,13 @@ impl<'a> RenderContext<'a> {
         Ok(())
     }
 
-    fn resolve_css_path(&self, filename: &str) -> String {
+    fn resolve_to_root(&self, filename: &str) -> String {
         if self.index {
-            return String::from("css/") + filename;
+            return filename.to_string();
         }
         match self.post.unwrap().index.project {
-            None => String::from("../css/") + filename,
-            Some(_) => String::from("../../css/") + filename
+            None => String::from("../") + filename,
+            Some(_) => String::from("../../") + filename
         }
     }
 

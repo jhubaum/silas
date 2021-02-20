@@ -353,7 +353,7 @@ impl SerializedBlogIndex<'_> {
 impl Serialize for SerializedBlogIndex<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer
     {
-        let mut s = serializer.serialize_struct("Blog", 5)?;
+        let mut s = serializer.serialize_struct("Blog", 6)?;
         s.serialize_field("layout", self.layout)?;
         s.serialize_field("title", "Blog | Johannes Huwald")?;
         s.serialize_field("heading", "Blog")?;
@@ -361,6 +361,7 @@ impl Serialize for SerializedBlogIndex<'_> {
 
         let css_args: Vec<String> = vec![String::from("../css/style.css")];
         s.serialize_field("css", &css_args)?;
+        s.serialize_field("favicon", "../favicon.png")?;
         s.end()
     }
 }

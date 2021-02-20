@@ -89,6 +89,9 @@ impl<'a> Theme<'a> {
                 entry.file_name().to_str().unwrap();
             fs::copy(entry.path(), file_name)?;
         }
+
+        fs::copy(self.theme_dir.to_string() + "/favicon.png",
+                 output_folder_path.to_string() + "/favicon.png")?;
         Ok(())
     }
 

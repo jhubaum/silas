@@ -161,9 +161,7 @@ impl<'a> RenderContext<'a> {
             let origin = self.post.unwrap().path
                              .parent().unwrap()
                              .to_str().unwrap().to_string() + "/" + &img;
-            println!("Origin: {:?}", origin);
-            fs::copy(origin,
-                     self.url(self.folder_out.to_string()) + "/" + &img)?;
+            fs::copy(origin, self.url(self.folder_out.to_string()) + "/" + &img)?;
         }
         Ok(())
     }

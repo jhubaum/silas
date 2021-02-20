@@ -113,12 +113,12 @@ impl<'a> OrgHTMLHandler<'a> {
 
 
         if let Some(desc) = alt {
-            write!(w, "<img src=\"{}\" alt=\"{}\"{}>",
+            write!(w, "<img src=\"./{}\" alt=\"{}\"{}>",
                    HtmlEscape(src),
                    HtmlEscape(&desc),
                    css)?;
         } else {
-            write!(w, "<img src=\"{}\"{}>",
+            write!(w, "<img src=\"./{}\"{}>",
                    HtmlEscape(src), css)?;
         }
         Ok(())

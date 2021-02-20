@@ -155,16 +155,17 @@ pub trait Builder: Sized {
         status.resolve("page", page.id())
     }
 
-    fn prepare_folder(&self, delete_existing: bool) -> Result<(), IOError> {
-        if fs::metadata(self.output_path()).is_ok() {
+    fn prepare_folder(output_folder_path: &str,
+                      delete_existing: bool) -> Result<(), IOError> {
+        if fs::metadata(output_folder_path).is_ok() {
             if !delete_existing {
-                panic!("Target folder '{}' is non-empty", self.output_path());
+                panic!("Target folder '{}' is non-empty", output_folder_path);
             }
 
             println!("Cleared previous result");
-            fs::remove_dir_all(self.output_path())?;
+            fs::remove_dir_all(output_folder_path)?;
         }
-        fs::create_dir(self.output_path())?;
+        fs::create_dir(output_folder_path)?;
         Ok(())
     }
 

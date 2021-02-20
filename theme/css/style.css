@@ -32,20 +32,40 @@ h1 {
     opacity: 0.6;
 }
 
+
 main,footer, .nav-container {
     display: block;
     margin: 0 auto;
     width: 60%;
 }
 
-.nav {
-    overflow: auto;
-}
-
 .nav-container{
     margin:1rem auto;
     position:relative;
     text-align:center
+}
+
+@media (min-width: 600px) {
+    .nav-container {
+        text-align:left
+    }
+
+    .nav ul {
+        bottom:0;
+        position:absolute;
+        right:0
+    }
+}
+
+@media (max-width: 600px) {
+    main,footer, .nav-container {
+        display: block;
+        width: 90%;
+    }
+}
+
+.nav {
+    overflow: auto;
 }
 
 .nav ul{
@@ -186,18 +206,6 @@ main {
     border-bottom: 3px solid var(--color-light-grey);
     border-radius: 5px;
     margin: 0 50px;
-}
-
-@media (min-width: 700px) {
-    .nav-container {
-        text-align:left
-    }
-
-    .nav ul {
-        bottom:0;
-        position:absolute;
-        right:0
-    }
 }
 
 .src {

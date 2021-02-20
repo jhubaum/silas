@@ -93,6 +93,9 @@ pub struct Post {
     orgfile: OrgFile
 }
 
+const IGNORED_FOLDERS: [&str; 1] = ["drafts"];
+const IGNORED_FILES: [&str; 1] = ["ideas.org"];
+
 impl Website {
     pub fn load(path: &Path) -> Result<Self, WebsiteLoadError> {
         let mut website = Website {
@@ -104,10 +107,18 @@ impl Website {
             if let Ok(entry) = entry {
                 let p = entry.path();
                 if p.is_dir() {
+                    let filename = p.file_name().unwrap().to_str().unwrap();
+                    if IGNORED_FOLDERS.contains(&filename) {
+                        continue;
+                    }
                     website.projects.push(Project::load(&p, ProjectIndex { index: website.projects.len() })?);
                 } else if p.file_name().unwrap() == "index.org" {
                     // create index file here
                 } else if p.extension().unwrap() == "org" {
+                    let filename = p.file_name().unwrap().to_str().unwrap();
+                    if IGNORED_FILES.contains(&filename) {
+                        continue;
+                    }
                     let post = Post::load(&p, PostIndex::without_project(website.pages.len()))?;
                     let id = post.id().to_string();
                     website.pages.insert(id, post);

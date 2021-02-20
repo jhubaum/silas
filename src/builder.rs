@@ -1,9 +1,7 @@
-use handlebars::{Handlebars, RenderContext, Helper, Context, JsonRender, HelperResult, Output, RenderError, TemplateFileError};
-
 use std::collections::BinaryHeap;
 
 use std::path::{Path, PathBuf};
-use std::io::{Error as IOError, Write};
+use std::io::{Error as IOError};
 use std::string::FromUtf8Error;
 use std::fs;
 use std::fs::File;
@@ -12,34 +10,21 @@ use rss::{ChannelBuilder, ItemBuilder};
 
 use serde::ser::{Serialize, Serializer, SerializeStruct};
 
-use chrono::naive::NaiveDate;
-
 pub mod website;
 pub mod org;
 mod context;
+mod theme;
+use theme::{Theme, ThemeError, RenderError};
 
 use website::{WebsiteLoadError, Website, Post, PostIndex};
 use org::OrgLoadError;
 
-fn render_date (h: &Helper, _: &Handlebars, _: &Context, _rc: &mut RenderContext, out: &mut dyn Output) -> HelperResult {
-    let param = h.param(0).unwrap();
-
-    let date = param.value().render();
-    let date = NaiveDate::parse_from_str(date.as_ref(), "%Y-%m-%d").unwrap();
-    out.write(&date.format("%A, %d. %B %Y").to_string())?;
-    Ok(())
-}
 
 pub enum PostStatus<'a> {
     Ok, // everything's ok
     Ignore, // everything's ok, don't include this post in rendering
     Warning(&'a str), // use this post, but print a warning
     Error(&'a str) // critical error. Cancel rendering
-}
-
-#[derive(Debug)]
-pub enum InstantiationError {
-    TemplateNotFound(TemplateFileError)
 }
 
 #[derive(Debug)]
@@ -56,14 +41,8 @@ pub enum GenerationError {
 
 #[derive(Debug)]
 pub enum SingleFileError {
-    Instantiation(InstantiationError),
+    ThemeError(ThemeError),
     GenerationError(GenerationError)
-}
-
-impl From<TemplateFileError> for InstantiationError {
-    fn from(err: TemplateFileError) -> Self {
-        InstantiationError::TemplateNotFound(err)
-    }
 }
 
 impl From<WebsiteLoadError> for GenerationError {
@@ -108,9 +87,9 @@ impl<T: Into<GenerationError>> From<T> for SingleFileError {
     }
 }
 
-impl From<InstantiationError> for SingleFileError {
-    fn from(err: InstantiationError) -> Self {
-        Self::Instantiation(err)
+impl From<ThemeError> for SingleFileError {
+    fn from(err: ThemeError) -> Self {
+        Self::ThemeError(err)
     }
 }
 
@@ -132,8 +111,8 @@ impl PostStatus<'_> {
 }
 
 pub trait Builder: Sized {
-    fn new(output_folder_path: &str) -> Result<Self, TemplateFileError>;
-    fn templates(&self) -> &Handlebars;
+    fn new(output_folder_path: &str) -> Result<Self, ThemeError>;
+    fn theme(&self) -> &Theme;
     fn output_path(&self) -> &str;
     fn base_url(&self) -> &str;
     fn check_post(&self, post: &Post) -> PostStatus;
@@ -177,19 +156,18 @@ pub trait Builder: Sized {
 
         let mut file = File::create(&filename_out)?;
         let layout = context::LayoutInfo::new(self.base_url().to_string());
-        write!(file, "{}", self.templates().render("post", &context.serialize(&layout)?)?)?;
+        self.theme().render(&mut file, "post",
+                            &context.serialize(&layout)?)?;
         Ok(())
     }
 
     fn generate(&self, website: &Website) -> Result<(), GenerationError> {
         let output_folder_path = self.output_path();
-        let templates = self.templates();
         let mut context = context::RenderContext::new(website, output_folder_path);
 
         let mut layout = context::LayoutInfo::new(self.base_url().to_string());
 
-        // Copy css
-        copy_folder("./theme/css", &(output_folder_path.to_string() + "/css"))?;
+        self.theme().copy_files(output_folder_path)?;
 
         for page in website.pages.values() {
             if !self.perform_page_check(page) {
@@ -203,7 +181,8 @@ pub trait Builder: Sized {
         // render about.org as website index
         context.set_index(website.pages.get("about").unwrap());
         let mut file = context.create_file(output_folder_path)?;
-        write!(file, "{}", templates.render("page", &context.serialize(&layout)?)?)?;
+        self.theme().render(&mut file, "page",
+                            &context.serialize(&layout)?)?;
         context.copy_images()?;
 
         for page in website.pages.values() {
@@ -213,7 +192,8 @@ pub trait Builder: Sized {
 
             context.set_target(&page);
             let mut file = context.create_file(output_folder_path)?;
-            write!(file, "{}", templates.render("page", &context.serialize(&layout)?)?)?;
+            self.theme().render(&mut file, "page",
+                                &context.serialize(&layout)?)?;
             context.copy_images()?;
         }
 
@@ -239,7 +219,7 @@ pub trait Builder: Sized {
                 channel.items.push(post.into());
                 let mut file = context.create_file(output_folder_path)?;
                 let ser = context.serialize(&layout)?;
-                write!(file, "{}", templates.render("post", &ser)?)?;
+                self.theme().render(&mut file, "post", &ser)?;
                 context.copy_images()?;
                 posts.push(ser);
             }
@@ -252,44 +232,33 @@ pub trait Builder: Sized {
         while let Some(post) = posts.pop() { p.push(post); }
 
         let index = SerializedBlogIndex { posts: p, layout: &layout };
-        write!(index.file(output_folder_path)?, "{}",
-               templates.render("project", &index)?)?;
+        self.theme().render(&mut index.file(output_folder_path)?, "project",
+                            &index)?;
         Ok(())
     }
 }
 
 pub struct ReleaseBuilder<'a> {
-    templates: Handlebars<'a>,
+    theme: Theme<'a>,
     output_path: String
 }
 
 pub struct PreviewBuilder<'a> {
-    templates: Handlebars<'a>,
+    theme: Theme<'a>,
     output_path: String,
     url: String,
 }
 
-fn load_templates<'a>() -> Result<Handlebars<'a>, TemplateFileError> {
-    let mut templates = Handlebars::new();
-    templates.register_template_file("layout", "./theme/layout.hbs")?;
-    templates.register_template_file("page", "./theme/page.hbs")?;
-    templates.register_template_file("post", "./theme/post.hbs")?;
-    templates.register_template_file("project", "./theme/project.hbs")?;
-
-    templates.register_helper("date", Box::new(render_date));
-    Ok(templates)
-}
-
 impl Builder for ReleaseBuilder<'_> {
-    fn new(output_path: &str) -> Result<Self, TemplateFileError> {
+    fn new(output_path: &str) -> Result<Self, ThemeError> {
         Ok(ReleaseBuilder {
             output_path: output_path.to_string(),
-            templates: load_templates()?
+            theme: Theme::load("./theme")?
         })
     }
 
-    fn templates(&self) -> &Handlebars {
-        &self.templates
+    fn theme(&self) -> &Theme {
+        &self.theme
     }
 
     fn output_path(&self) -> &str {
@@ -320,20 +289,20 @@ impl Builder for ReleaseBuilder<'_> {
 }
 
 impl Builder for PreviewBuilder<'_> {
-    fn new(output_path: &str) -> Result<Self, TemplateFileError> {
+    fn new(output_path: &str) -> Result<Self, ThemeError> {
         let url = Path::new(output_path).to_str().unwrap();
         let url = fs::canonicalize(&url).unwrap();
         let url = url.to_str().unwrap().to_string();
 
         Ok(PreviewBuilder {
             output_path: output_path.to_string(),
-            templates: load_templates()?,
+            theme: Theme::load("./theme")?,
             url
         })
     }
 
-    fn templates(&self) -> &Handlebars {
-        &self.templates
+    fn theme(&self) -> &Theme {
+        &self.theme
     }
 
     fn output_path(&self) -> &str {
@@ -354,20 +323,6 @@ impl Builder for PreviewBuilder<'_> {
     fn check_page(&self, _page: &Post) -> PostStatus {
         PostStatus::Ok
     }
-}
-
-fn copy_folder(folder: &str, target: &str) -> Result<(), IOError> {
-    if fs::metadata(target).is_ok() {
-        panic!{"copy_folder: target '{}' already exists", target};
-    }
-    fs::create_dir_all(target)?;
-
-    for entry in fs::read_dir(folder)? {
-        let entry = entry?;
-        fs::copy(entry.path(), target.to_string() + "/" + entry.file_name().to_str().unwrap())?;
-    }
-
-    Ok(())
 }
 
 impl From<&Post> for rss::Item {

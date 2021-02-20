@@ -4,7 +4,7 @@ use builder::website::Website;
 use std::path::Path;
 
 fn execute<T: Builder>(matches: &clap::ArgMatches) -> Result<(), builder::GenerationError> {
-    let output_folder_path = "generated";
+    let output_folder_path = matches.value_of("output").unwrap();
     T::prepare_folder(output_folder_path, true)?;
 
     let builder = match T::new(output_folder_path) {
@@ -47,6 +47,13 @@ fn main() {
              .help("Render the blog in preview mode")
              .required(false)
              .takes_value(false))
+        .arg(clap::Arg::with_name("output")
+             .long("output")
+             .short("o")
+             .takes_value(true)
+             .default_value("generated")
+             .help("The output directory for the SSG")
+             .required(true))
         .get_matches();
 
     let res = if matches.is_present("preview") {

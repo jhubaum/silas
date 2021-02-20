@@ -41,13 +41,17 @@ impl From<chrono::ParseError> for OrgLoadError {
 #[derive(Default)]
 pub struct OrgHTMLHandler<'a> {
     fallback: DefaultHtmlHandler,
-    context: Option<&'a RenderContext<'a>>
+    context: Option<&'a RenderContext<'a>>,
+    attributes: Vec<String>
 }
 
 impl<'a> OrgHTMLHandler<'a> {
     pub fn new(context: &'a RenderContext) -> Self {
-        OrgHTMLHandler { context: Some(context),
-                         fallback: DefaultHtmlHandler::default() }
+        OrgHTMLHandler {
+            context: Some(context),
+            fallback: DefaultHtmlHandler::default(),
+            attributes: Vec::new()
+        }
     }
 
     /// return true if the fallback rendering should be used
@@ -78,14 +82,11 @@ impl<'a> OrgHTMLHandler<'a> {
                                HtmlEscape(link.desc.as_ref().map_or(target.as_str(), |s| &s)))?;
                     },
                     ResolvedInternalLink::Image(target) => {
-                        if let Some(desc) = link.desc.as_ref() {
-                            write!(w, "<img src=\"{}\" alt=\"{}\">",
-                                   HtmlEscape(&target),
-                                   HtmlEscape(&desc))?;
-                        } else {
-                            write!(w, "<img src=\"{}\">",
-                                   HtmlEscape(&target))?;
-                        }
+                        let desc = match &link.desc {
+                            None => None,
+                            Some(s) => Some(s.as_ref())
+                        };
+                        self.render_image(w, &target, desc)?;
                     }
                 }
             },
@@ -96,17 +97,59 @@ impl<'a> OrgHTMLHandler<'a> {
         };
         Ok(false)
     }
+
+    fn render_image<W: Write>(&self, w: &mut W, src: &str, alt: Option<&str>) -> Result<(), GenerationError> {
+        let mut css = Vec::new();
+        for attr in &self.attributes {
+            if &attr[0..7] != ":style " {
+                panic!("Unable to handle attribute {} for rendering image",
+                       self.attributes[0]);
+            }
+            css.push(&attr[7..attr.len()]);
+        }
+        let css = if css.len() == 0 { String::from(" ") } else {
+            format!(" style=\"{}\"", css.join(" "))
+        };
+
+
+        if let Some(desc) = alt {
+            write!(w, "<img src=\"{}\" alt=\"{}\"{}>",
+                   HtmlEscape(src),
+                   HtmlEscape(&desc),
+                   css)?;
+        } else {
+            write!(w, "<img src=\"{}\"{}>",
+                   HtmlEscape(src), css)?;
+        }
+        Ok(())
+    }
+
+    fn insert_attribute(&mut self, attribute: &orgize::elements::Keyword) {
+        match attribute.key.as_ref() {
+            "ATTR_HTML" => self.attributes.push(attribute.value.to_string()),
+            _ => {  }
+        }
+    }
 }
 
 impl HtmlHandler<GenerationError> for OrgHTMLHandler<'_> {
     fn start<W: Write>(&mut self, mut w: W, element: &Element) -> Result<(), GenerationError> {
         match element {
+            Element::Keyword(keyword) => self.insert_attribute(keyword),
             Element::Link(link) => if self.context.is_none() || self.write_link(&mut w, &link)? {
                 self.fallback.start(w, element)?;
             },
             Element::Document { .. } => {  },
             _ => self.fallback.start(w, element)?
         };
+
+        // Reset attributes after each element with content
+        if match element {
+            Element::Keyword(_) => false,
+            Element::Paragraph { .. } => false,
+            _ => true
+        } { self.attributes.clear(); }
+
         Ok(())
     }
 

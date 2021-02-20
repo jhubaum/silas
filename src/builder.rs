@@ -30,6 +30,13 @@ fn render_date (h: &Helper, _: &Handlebars, _: &Context, _rc: &mut RenderContext
     Ok(())
 }
 
+pub enum PostStatus<'a> {
+    Ok, // everything's ok
+    Ignore, // everything's ok, don't include this post in rendering
+    Warning(&'a str), // use this post, but print a warning
+    Error(&'a str) // critical error. Cancel rendering
+}
+
 #[derive(Debug)]
 pub enum InstantiationError {
     TemplateNotFound(TemplateFileError)
@@ -107,11 +114,46 @@ impl From<InstantiationError> for SingleFileError {
     }
 }
 
+impl PostStatus<'_> {
+    fn resolve(&self, post_type: &str, post_id: &str) -> bool {
+        match self {
+            PostStatus::Warning(warn) => {
+                println!("Warning for {} '{}': {}", post_type,
+                         post_id, warn);
+                true
+            },
+            PostStatus::Error(err) => {
+                panic!("Error for {} '{}': {}", post_type, post_id, err);
+            },
+            PostStatus::Ok => true,
+            PostStatus::Ignore => false
+        }
+    }
+}
+
 pub trait Builder: Sized {
     fn new(output_folder_path: &str) -> Result<Self, TemplateFileError>;
     fn templates(&self) -> &Handlebars;
     fn output_path(&self) -> &str;
     fn base_url(&self) -> &str;
+    fn check_post(&self, post: &Post) -> PostStatus;
+    fn check_page(&self, page: &Post) -> PostStatus;
+
+    fn perform_post_check(&self, post: &Post) -> bool {
+        let status = self.check_post(post);
+        if let PostStatus::Error(_) = status {
+            fs::remove_dir_all(self.output_path()).unwrap();
+        }
+        status.resolve("post", post.id())
+    }
+
+    fn perform_page_check(&self, page: &Post) -> bool {
+        let status = self.check_page(page);
+        if let PostStatus::Error(_) = status {
+            fs::remove_dir_all(self.output_path()).unwrap();
+        }
+        status.resolve("page", page.id())
+    }
 
     fn prepare_folder(&self, delete_existing: bool) -> Result<(), IOError> {
         if fs::metadata(self.output_path()).is_ok() {
@@ -149,11 +191,19 @@ pub trait Builder: Sized {
         copy_folder("./theme/css", &(output_folder_path.to_string() + "/css"))?;
 
         for page in website.pages.iter() {
+            if !self.perform_page_check(page) {
+                continue;
+            }
+
             layout.insert_post_in_header(page);
         }
         layout.insert_header("blog", String::from("Blog"));
 
         for page in website.pages.iter() {
+            if !self.perform_page_check(page) {
+                continue;
+            }
+
             context.set_target(&page);
             let mut file = context.create_file(output_folder_path)?;
             write!(file, "{}", templates.render("page", &context.serialize(&layout)?)?)?;
@@ -175,6 +225,9 @@ pub trait Builder: Sized {
         let mut posts = BinaryHeap::new();
         for proj in website.projects.iter() {
             for post in proj.posts.iter() {
+                if !self.perform_post_check(post) {
+                    continue;
+                }
                 context.set_target(&post);
                 channel.items.push(post.into());
                 let mut file = context.create_file(output_folder_path)?;
@@ -239,6 +292,24 @@ impl Builder for ReleaseBuilder<'_> {
     fn base_url(&self) -> &str {
         "https://www.jhuwald.com"
     }
+
+    fn check_post(&self, post: &Post) -> PostStatus {
+        if post.published.is_none() {
+            return PostStatus::Ignore
+        }
+
+        if post.summary().is_none() {
+            return PostStatus::Error("non-draft is missing a summary")
+        }
+        PostStatus::Ok
+    }
+
+    fn check_page(&self, page: &Post) -> PostStatus {
+        match page.published {
+            None => PostStatus::Ignore,
+            Some(_) => PostStatus::Ok
+        }
+    }
 }
 
 impl Builder for PreviewBuilder<'_> {
@@ -264,6 +335,17 @@ impl Builder for PreviewBuilder<'_> {
 
     fn base_url(&self) -> &str {
         &self.url
+    }
+
+    fn check_post(&self, post: &Post) -> PostStatus {
+        if post.published.is_some() && post.summary().is_none() {
+            return PostStatus::Warning("non-draft is missing a summary")
+        }
+        PostStatus::Ok
+    }
+
+    fn check_page(&self, _page: &Post) -> PostStatus {
+        PostStatus::Ok
     }
 }
 

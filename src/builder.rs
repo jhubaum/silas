@@ -16,6 +16,25 @@ mod context;
 mod theme;
 use theme::{Theme, ThemeError, RenderError};
 
+pub mod website_new;
+
+pub fn debug_new_website(path: &str) {
+    let website = website_new::Website::load(path).unwrap();
+
+    println!("Loaded website at path {:?}", path);
+    println!("Pages:");
+    for page in website.pages.values() {
+        println!("\t{}", page.id());
+    }
+
+    for project in website.projects.values() {
+        println!("\nProject {}:", project.id());
+        for post in project.posts.values() {
+            println!("\t{}", post.id());
+        }
+    }
+}
+
 use website::{WebsiteLoadError, Website, Post, PostIndex};
 use org::OrgLoadError;
 

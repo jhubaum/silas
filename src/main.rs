@@ -56,6 +56,9 @@ fn main() {
              .required(true))
         .get_matches();
 
+    builder::debug_new_website(matches.value_of("PATH").unwrap());
+    return;
+
     let res = if matches.is_present("preview") {
         execute::<PreviewBuilder>(&matches)
     } else {

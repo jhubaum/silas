@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Error as IOError;
 use std::path::{Path, PathBuf};
 
@@ -16,17 +16,17 @@ impl From<IOError> for LoadError {
 
 pub struct Website {
     pub projects: HashMap<String, Project>,
-    pub pages: HashMap<String, OrgFile>
+    pub pages: HashMap<PathBuf, OrgFile>,
 }
 
-
 pub struct Project {
-    pub posts: HashMap<String, OrgFile>
+    pub posts: HashMap<PathBuf, OrgFile>
 }
 
 #[derive(Clone)]
 pub struct OrgFile {
-    id: String
+    id: String,
+    path: PathBuf
 }
 
 const IGNORED_FOLDERS: [&str; 1] = ["drafts"];
@@ -53,14 +53,33 @@ impl Website {
                     continue;
             }
             let org = OrgFile::load(&path)?;
-            pages.insert(org.id().to_string(), org);
+            pages.insert(org.path.clone(), org);
+        }
+
+        let mut links = HashMap::new();
+        for proj in projects.values() {
+            for post in proj.posts.values() {
+                links.insert(post.path.as_path(), post);
+            }
         }
 
         Ok(Website { projects, pages })
     }
+
+    pub fn resolve_path(&self, path: &Path) -> Option<&OrgFile> {
+        if let Some(page) = self.pages.get(path) {
+            return Some(page);
+        }
+
+        for proj in self.projects.values() {
+            if let Some(post) = proj.posts.get(path) {
+                return Some(post);
+            }
+        }
+
+        None
+    }
 }
-
-
 
 fn find_all_project_files(path: &Path) -> Result<Vec<PathBuf>, IOError> {
     let mut files = Vec::new();
@@ -98,17 +117,19 @@ impl Project {
         // this so that it gets a foldername as input and uses only it.
 
         let mut posts = HashMap::new();
+        let mut ids = HashSet::new();
         for path in find_all_project_files(path)?.iter() {
             if path.file_name().unwrap() == "index.org" ||
                 path.extension().unwrap() != "org" {
                 continue;
             }
             let org = OrgFile::load(path)?;
-            if posts.contains_key(org.id()) {
+            if ids.contains(org.id()) {
                 return Err(LoadError::DuplicateFileID(org.id().to_string()));
             }
+            ids.insert(org.id().to_string());
 
-            posts.insert(org.id().to_string(), org);
+            posts.insert(org.path.clone(), org);
         }
 
 
@@ -129,11 +150,28 @@ impl OrgFile {
         }
 
         Ok ( OrgFile {
-            id: path.file_stem().unwrap().to_str().unwrap().to_string()
+            id: path.file_stem().unwrap().to_str().unwrap().to_string(),
+            path: path.clone()
         } )
     }
 
     pub fn id(&self) -> &str {
         &self.id
     }
+
+    pub fn resolve_link(&self, link: &str) -> PathBuf {
+        let mut path = self.path.clone();
+        path.pop();
+
+        for part in Path::new(link) {
+            match part.to_str().unwrap() {
+                "." => {  },
+                ".." => { path.pop(); },
+                part => path.push(part)
+            }
+        }
+
+        path
+    }
+
 }

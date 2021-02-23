@@ -24,13 +24,13 @@ pub fn debug_new_website(path: &str) {
     println!("Loaded website at path {:?}", path);
     println!("Pages:");
     for page in website.pages.values() {
-        println!("\t{}", page.id());
+        println!("\t{} (\"{}\")", page.id(), website.file_url(&page, String::from("")));
     }
 
     for project in website.projects.values() {
         println!("\nProject {}:", project.id());
         for post in project.posts.values() {
-            println!("\t{}", post.id());
+            println!("\t{} (\"{}\")", post.id(), website.file_url(&post, String::from("")));
         }
     }
 }

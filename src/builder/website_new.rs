@@ -79,6 +79,23 @@ impl Website {
 
         None
     }
+
+    pub fn file_url(&self, file: &OrgFile, basename: String) -> String {
+        if self.pages.contains_key(&file.path) {
+            return basename + "/" + file.id();
+        }
+
+        for proj in self.projects.values() {
+            if proj.posts.contains_key(&file.path) {
+                return basename + "/" + proj.id() + "/" + file.id();
+            }
+        }
+        panic!("Website:file_url called with Orgfile not loaded by Website");
+    }
+
+    pub fn project_url(&self, project: &Project, basename: String) -> String {
+        return basename + "/" + project.id()
+    }
 }
 
 fn find_all_project_files(path: &Path) -> Result<Vec<PathBuf>, IOError> {

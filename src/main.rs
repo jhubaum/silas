@@ -1,31 +1,20 @@
 mod builder;
-use builder::{ReleaseBuilder, PreviewBuilder, Builder};
-use builder::website::Website;
-use std::path::Path;
+use builder::{ReleaseMode, PreviewMode, Mode, Builder};
 
-fn execute<T: Builder>(matches: &clap::ArgMatches) -> Result<(), builder::GenerationError> {
-    let output_folder_path = matches.value_of("output").unwrap();
-    T::prepare_folder(output_folder_path, true)?;
-
-    let builder = match T::new(output_folder_path) {
-        Err(err) => panic!("Unable to load theme: {:?}", err),
+fn execute<T: Mode>(matches: &clap::ArgMatches) {
+    let builder = match Builder::new(matches.value_of("PATH").unwrap()) {
+        Err(err) => panic!("Unable to instantiate builder: {:?}", err),
         Ok(builder) => builder
     };
 
-    let path = matches.value_of("PATH").unwrap();
-
     if matches.is_present("file") {
-        match builder.generate_single_file(path, "out.html") {
-            Ok(()) => println!("Wrote {} to out.html",
-                           matches.value_of("PATH").unwrap()),
-            Err(err) => panic!("{:?}", err)
-        }
+        println!("Printing a single file is currently not supported");
     } else {
-        let website = Website::load(Path::new(path))?;
-
-        builder.generate(&website)?;
+        match builder.generate::<T>(matches.value_of("output").unwrap(), true) {
+            Err(err) => panic!("Unable to generate website: {:?}", err),
+            Ok(()) => println!("Generation successful!")
+        }
     }
-    Ok(())
 }
 
 fn main() {
@@ -56,17 +45,9 @@ fn main() {
              .required(true))
         .get_matches();
 
-    builder::debug_new_website(matches.value_of("PATH").unwrap());
-    return;
-
-    let res = if matches.is_present("preview") {
-        execute::<PreviewBuilder>(&matches)
+    if matches.is_present("preview") {
+        execute::<PreviewMode>(&matches)
     } else {
-        execute::<ReleaseBuilder>(&matches)
-    };
-
-    match res {
-        Ok(()) => println!("Generation successful!"),
-        Err(err) => panic!("Couldn't generate site: {:?}", err)
+        execute::<ReleaseMode>(&matches)
     };
 }

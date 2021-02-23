@@ -29,6 +29,10 @@ pub struct OrgFile {
     path: PathBuf
 }
 
+pub trait BlogElement {
+    fn url(&self, website: &Website, base: String) -> String;
+}
+
 const IGNORED_FOLDERS: [&str; 1] = ["drafts"];
 const IGNORED_FILES: [&str; 2] = ["ideas.org", "index.org"];
 
@@ -78,23 +82,6 @@ impl Website {
         }
 
         None
-    }
-
-    pub fn file_url(&self, file: &OrgFile, basename: String) -> String {
-        if self.pages.contains_key(&file.path) {
-            return basename + "/" + file.id();
-        }
-
-        for proj in self.projects.values() {
-            if proj.posts.contains_key(&file.path) {
-                return basename + "/" + proj.id() + "/" + file.id();
-            }
-        }
-        panic!("Website:file_url called with Orgfile not loaded by Website");
-    }
-
-    pub fn project_url(&self, project: &Project, basename: String) -> String {
-        return basename + "/" + project.id()
     }
 }
 
@@ -190,5 +177,32 @@ impl OrgFile {
 
         path
     }
+}
 
+
+impl BlogElement for Website {
+    fn url(&self, website: &Website, base: String) -> String {
+        base
+    }
+}
+
+impl BlogElement for Project {
+    fn url(&self, website: &Website, base: String) -> String {
+       base + "/" + self.id()
+    }
+}
+
+impl BlogElement for OrgFile {
+    fn url(&self, website: &Website, base: String) -> String {
+        if website.pages.contains_key(&self.path) {
+            return base + "/" + self.id();
+        }
+
+        for proj in website.projects.values() {
+            if proj.posts.contains_key(&self.path) {
+                return base + "/" + proj.id() + "/" + self.id();
+            }
+        }
+        panic!("OrgFile:url called with Website that didn't load Orgfile");
+    }
 }

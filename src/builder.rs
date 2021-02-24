@@ -136,6 +136,7 @@ impl Builder<'_> {
             fs::remove_dir_all(output_path)?;
         }
         fs::create_dir(output_path)?;
+        self.theme.copy_files(output_path)?;
 
         let mode = TMode::create(output_path);
         let layout = LayoutInfo::new(&self.website, &mode);

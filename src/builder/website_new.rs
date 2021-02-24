@@ -1,16 +1,34 @@
 use std::collections::{HashMap, HashSet};
 use std::io::Error as IOError;
 use std::path::{Path, PathBuf};
+use std::string::FromUtf8Error;
+
+use std::fs;
+use orgize::{Element, Org, Event};
 
 #[derive(Debug)]
 pub enum LoadError {
     IO(IOError),
-    DuplicateFileID(String)
+    DuplicateFileID(String),
+    UTF8(FromUtf8Error),
+    Date(chrono::ParseError)
 }
 
 impl From<IOError> for LoadError {
     fn from(err: IOError) -> Self {
         Self::IO(err)
+    }
+}
+
+impl From<FromUtf8Error> for LoadError {
+    fn from(err: FromUtf8Error) -> Self {
+        Self::UTF8(err)
+    }
+}
+
+impl From<chrono::ParseError> for LoadError {
+    fn from(err: chrono::ParseError) -> Self {
+        Self::Date(err)
     }
 }
 
@@ -26,7 +44,10 @@ pub struct Project {
 #[derive(Clone)]
 pub struct OrgFile {
     id: String,
-    path: PathBuf
+    path: PathBuf,
+    contents: String,
+    preamble: HashMap<String, String>,
+    pub published: Option<chrono::naive::NaiveDate>
 }
 
 pub trait BlogElement {
@@ -163,14 +184,57 @@ impl OrgFile {
             panic!("Trying to load {:?} as orgfile. This shouldn't happen", path);
         }
 
+        let contents = String::from_utf8(fs::read(path)?)?;
+        let parser = Org::parse(&contents);
+
+        let preamble = OrgFile::extract_preamble(&parser, path);
+        let published = match preamble.get("published") {
+            None => None,
+            Some(d) => Some(OrgFile::parse_date(&d)?)
+        };
+
         Ok ( OrgFile {
             id: path.file_stem().unwrap().to_str().unwrap().to_string(),
-            path: path.clone()
+            path: path.clone(),
+            contents, preamble, published
         } )
+    }
+
+    fn extract_preamble(org: &Org, filename: &Path) -> HashMap<String, String>{
+        let mut iter = org.iter();
+        iter.next(); // Start document
+        iter.next(); // Start section
+
+        let mut preamble = HashMap::new();
+        loop {
+            match iter.next() {
+                None => break,
+                Some(Event::End(_)) => continue,
+                Some(Event::Start(Element::Keyword(k))) => {
+                    if k.value.len() == 0 {
+                        println!("Warning: encountered empty keyword '{}' while parsing org file {:?}", k.key, filename);
+                    } else {
+                        preamble.insert(
+                            k.key.to_string().to_lowercase(),
+                            k.value.to_string());
+                    }
+                },
+                Some(Event::Start(_)) => break
+            };
+        }
+        preamble
+    }
+
+    fn parse_date(date_str: &str) -> chrono::ParseResult<chrono::naive::NaiveDate> {
+        chrono::naive::NaiveDate::parse_from_str(date_str, "<%Y-%m-%d>")
     }
 
     pub fn id(&self) -> &str {
         &self.id
+    }
+
+    pub fn from_preamble<'a>(&'a self, key: &str) -> Option<&'a str> {
+        return self.preamble.get(key).and_then(|s| Some(s.as_str()))
     }
 
     pub fn resolve_link(&self, link: &str) -> PathBuf {
@@ -225,7 +289,9 @@ impl BlogElement for OrgFile {
     }
 
     fn title(&self) -> &str {
-        "Not yet implemented"
+        let title = &self.from_preamble("title");
+        assert!(title.is_some(), "Orgfile {:?} is missing a title", self.path);
+        return title.unwrap();
     }
 
 }

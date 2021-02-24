@@ -7,7 +7,9 @@ use serde::Serialize;
 pub struct LayoutInfo {
     header: Vec<SerializedLink>,
     #[serde(rename = "website-name")]
-    website_name: SerializedLink
+    website_name: SerializedLink,
+    #[serde(rename = "base-url")]
+    base_url: String
 }
 
 #[derive(Serialize)]
@@ -22,8 +24,32 @@ pub struct SerializedPost<'a> {
 }
 
 #[derive(Serialize)]
+struct PostSummary<'a> {
+    heading: &'a str,
+    id: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    published: Option<chrono::naive::NaiveDate>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    summary: Option<&'a str>
+}
+
+#[derive(Serialize)]
 pub struct SerializedProjectIndex<'a> {
-    layout: &'a LayoutInfo
+    layout: &'a LayoutInfo,
+    title: String,
+    heading: String,
+    posts: Vec<PostSummary<'a>>
+}
+
+impl<'a> From<&'a website_new::OrgFile> for PostSummary<'a> {
+    fn from(post: &'a website_new::OrgFile) -> Self {
+        PostSummary {
+            heading: post.title(),
+            id: post.id(),
+            published: post.published,
+            summary: post.from_preamble("summary")
+        }
+    }
 }
 
 impl SerializedLink {
@@ -57,7 +83,8 @@ impl LayoutInfo {
 
         LayoutInfo {
             header,
-            website_name: SerializedLink::from_blog_element(website, website, mode)
+            website_name: SerializedLink::from_blog_element(website, website, mode),
+            base_url: mode.base_url()
         }
     }
 }
@@ -69,8 +96,14 @@ impl website_new::Website {
 }
 
 impl website_new::Project {
-    pub fn serialize<'a, T: Mode>(&self, mode: &T, layout: &'a LayoutInfo) -> SerializedProjectIndex<'a> {
-        SerializedProjectIndex { layout }
+    pub fn serialize<'a, T: Mode>(&'a self, _mode: &T, layout: &'a LayoutInfo) -> SerializedProjectIndex<'a> {
+        // https://rust-lang-nursery.github.io/rust-cookbook/algorithms/sorting.html
+        SerializedProjectIndex {
+            layout,
+            title: self.title().to_string() + " | Johannes Huwald",
+            heading: self.title().to_string(),
+            posts: self.posts.values().map(|p| p.into()).collect()
+        }
     }
 }
 

@@ -3,10 +3,8 @@
 <html>
   <head>
     <meta charset="utf-8">
-    {{#each css}}
-    <link rel="stylesheet" href="{{this}}" type="text/css"/>
-    {{/each}}
-    <link rel="icon" type="image/png" href="{{favicon}}">
+    <link rel="stylesheet" href="{{layout.base-url}}/css/style.css" type="text/css"/>
+    <link rel="icon" type="image/png" href="{{layout.base-url}}/favicon.png">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{title}}</title>
   </head>

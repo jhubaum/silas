@@ -31,6 +31,7 @@ pub struct OrgFile {
 
 pub trait BlogElement {
     fn url(&self, website: &Website, base: String) -> String;
+    fn title(&self) -> &str;
 }
 
 const IGNORED_FOLDERS: [&str; 1] = ["drafts"];
@@ -81,6 +82,15 @@ impl Website {
             }
         }
 
+        None
+    }
+
+    pub fn page_by_id(&self, id: &str) -> Option<&OrgFile> {
+        for page in self.pages.values() {
+            if page.id() == id {
+                return Some(&page);
+            }
+        }
         None
     }
 }
@@ -184,11 +194,19 @@ impl BlogElement for Website {
     fn url(&self, website: &Website, base: String) -> String {
         base
     }
+
+    fn title(&self) -> &str {
+        "Johannes Huwald"
+    }
 }
 
 impl BlogElement for Project {
     fn url(&self, website: &Website, base: String) -> String {
        base + "/" + self.id()
+    }
+
+    fn title(&self) -> &str {
+        "Blog"
     }
 }
 
@@ -205,4 +223,9 @@ impl BlogElement for OrgFile {
         }
         panic!("OrgFile:url called with Website that didn't load Orgfile");
     }
+
+    fn title(&self) -> &str {
+        "Not yet implemented"
+    }
+
 }

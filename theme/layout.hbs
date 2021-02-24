@@ -14,9 +14,11 @@
     {{log "layout" level="error"}}
     <nav class="nav">
       <div class="nav-container">
-        <a href="{{layout.base-url}}" id="nav-title">
-          <h2>Johannes Huwald</h2>
+        {{#with layout.website-name}}
+        <a href="{{this.target}}" id="nav-title">
+          <h2>{{this.title}}</h2>
         </a>
+        {{/with}}
         <ul>
           {{#each layout.header as |link| }}
           <li><a href="{{link.target}}">{{link.title}}</a></li>

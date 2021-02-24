@@ -14,7 +14,7 @@ mod theme;
 use theme::{Theme, ThemeError, RenderError};
 
 pub mod website_new;
-use website_new::{Website, LoadError, BlogElement};
+use website_new::{Website, LoadError, BlogElement, OrgFile};
 
 mod serialize;
 use serialize::LayoutInfo;
@@ -69,6 +69,9 @@ pub struct Builder<'a> {
 pub trait Mode: Sized {
     fn create(output_path: &str) -> Self;
     fn base_url(&self) -> String;
+
+    fn include_page(&self, page: &OrgFile) -> bool;
+    fn include_post(&self, post: &OrgFile) -> bool;
 }
 
 pub struct ReleaseMode {  }
@@ -84,6 +87,14 @@ impl Mode for ReleaseMode {
     fn base_url(&self) -> String {
         String::from("https://jhuwald.com")
     }
+
+    fn include_page(&self, page: &OrgFile) -> bool {
+        true
+    }
+
+    fn include_post(&self, post: &OrgFile) -> bool {
+        true
+    }
 }
 
 impl Mode for PreviewMode {
@@ -97,6 +108,14 @@ impl Mode for PreviewMode {
     fn base_url(&self) -> String {
         self.path.clone()
     }
+
+    fn include_page(&self, page: &OrgFile) -> bool {
+        true
+    }
+
+    fn include_post(&self, post: &OrgFile) -> bool {
+        true
+    }
 }
 
 impl Builder<'_> {
@@ -108,8 +127,18 @@ impl Builder<'_> {
     }
 
     pub fn generate<TMode: Mode>(&self, output_path: &str, overwrite_existing: bool) -> Result<(), RenderError> {
+        if fs::metadata(output_path).is_ok() {
+            if !overwrite_existing {
+                panic!("Target folder '{}' is non-empty", output_path);
+            }
+
+            println!("Cleared previous result");
+            fs::remove_dir_all(output_path)?;
+        }
+        fs::create_dir(output_path)?;
+
         let mode = TMode::create(output_path);
-        let layout = LayoutInfo::new(&self.website);
+        let layout = LayoutInfo::new(&self.website, &mode);
 
         let mut file = self.prepare_file(&self.website, output_path)?;
         self.theme.render(&mut file, "page",

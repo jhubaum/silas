@@ -11,13 +11,15 @@ use rss::{ChannelBuilder, ItemBuilder};
 use serde::ser::{Serialize, Serializer, SerializeStruct};
 
 mod theme;
-use theme::{Theme, ThemeError, RenderError};
+use theme::{Theme, ThemeError};
 
 pub mod website_new;
 use website_new::{Website, LoadError, BlogElement, OrgFile};
 
 mod serialize;
 use serialize::LayoutInfo;
+
+mod rendering;
 
 #[derive(Debug)]
 pub enum InitError {
@@ -37,29 +39,31 @@ impl From<LoadError> for InitError {
     }
 }
 
-pub enum PostStatus<'a> {
-    Ok, // everything's ok
-    Ignore, // everything's ok, don't include this post in rendering
-    Warning(&'a str), // use this post, but print a warning
-    Error(&'a str) // critical error. Cancel rendering
+#[derive(Debug)]
+pub enum RenderError {
+    Theme(theme::RenderError),
+    HTML(rendering::HTMLExportError),
+    IO(IOError)
 }
 
-impl PostStatus<'_> {
-    fn resolve(&self, post_type: &str, post_id: &str) -> bool {
-        match self {
-            PostStatus::Warning(warn) => {
-                println!("Warning for {} '{}': {}", post_type,
-                         post_id, warn);
-                true
-            },
-            PostStatus::Error(err) => {
-                panic!("Error for {} '{}': {}", post_type, post_id, err);
-            },
-            PostStatus::Ok => true,
-            PostStatus::Ignore => false
-        }
+impl From<theme::RenderError> for RenderError {
+    fn from(err: theme::RenderError) -> Self {
+        Self::Theme(err)
     }
 }
+
+impl From<rendering::HTMLExportError> for RenderError {
+    fn from(err: rendering::HTMLExportError) -> Self {
+        Self::HTML(err)
+    }
+}
+
+impl From<IOError> for RenderError {
+    fn from(err: IOError) -> Self {
+        Self::IO(err)
+    }
+}
+
 
 pub struct Builder<'a> {
     theme: Theme<'a>,
@@ -143,12 +147,13 @@ impl Builder<'_> {
 
         let mut file = self.prepare_file(&self.website, output_path)?;
         self.theme.render(&mut file, "page",
-                          &self.website.serialize(&mode, &layout))?;
+                          &self.website.serialize(&mode, &layout)?)?;
 
         for page in self.website.pages.values() {
             let mut file = self.prepare_file(page, output_path)?;
             self.theme.render(&mut file, "page",
-                              &page.serialize(&mode, &layout))?;
+                              &page.serialize(&self.website,
+                                              &mode, &layout)?)?;
         }
 
         for project in self.website.projects.values() {
@@ -159,7 +164,8 @@ impl Builder<'_> {
             for post in project.posts.values() {
                 let mut file = self.prepare_file(post, output_path)?;
                 self.theme.render(&mut file, "post",
-                                  &post.serialize(&mode, &layout))?;
+                                  &post.serialize(&self.website,
+                                                  &mode, &layout)?)?;
             }
         }
 

@@ -44,10 +44,11 @@ pub struct Project {
 #[derive(Clone)]
 pub struct OrgFile {
     id: String,
-    path: PathBuf,
-    contents: String,
     preamble: HashMap<String, String>,
-    pub published: Option<chrono::naive::NaiveDate>
+    pub path: PathBuf,
+    pub contents: String,
+    pub published: Option<chrono::naive::NaiveDate>,
+    pub last_edit: Option<chrono::naive::NaiveDate>
 }
 
 pub trait BlogElement {
@@ -192,11 +193,15 @@ impl OrgFile {
             None => None,
             Some(d) => Some(OrgFile::parse_date(&d)?)
         };
+        let last_edit = match preamble.get("last-edit") {
+            None => None,
+            Some(d) => Some(OrgFile::parse_date(&d)?)
+        };
 
         Ok ( OrgFile {
             id: path.file_stem().unwrap().to_str().unwrap().to_string(),
             path: path.clone(),
-            contents, preamble, published
+            contents, preamble, published, last_edit
         } )
     }
 

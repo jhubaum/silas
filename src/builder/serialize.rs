@@ -1,6 +1,7 @@
 use super::Mode;
 use super::website_new;
 use super::website_new::BlogElement;
+use super::rendering;
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -20,7 +21,18 @@ pub struct SerializedLink {
 
 #[derive(Serialize)]
 pub struct SerializedPost<'a> {
-    layout: &'a LayoutInfo
+    layout: &'a LayoutInfo,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    published: Option<chrono::naive::NaiveDate>,
+    #[serde(rename = "last-edit")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_edit: Option<chrono::naive::NaiveDate>,
+    content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    summary: Option<&'a str>,
+    title: String,
+    heading: &'a str,
+    id: &'a str
 }
 
 #[derive(Serialize)]
@@ -90,8 +102,8 @@ impl LayoutInfo {
 }
 
 impl website_new::Website {
-    pub fn serialize<'a, T: Mode>(&self, mode: &T, layout: &'a LayoutInfo) -> SerializedPost<'a> {
-        self.page_by_id("about").unwrap().serialize(mode, layout)
+    pub fn serialize<'a, T: Mode>(&'a self, mode: &T, layout: &'a LayoutInfo) -> Result<SerializedPost<'a>, rendering::HTMLExportError> {
+        self.page_by_id("about").unwrap().serialize(self, mode, layout)
     }
 }
 
@@ -108,7 +120,16 @@ impl website_new::Project {
 }
 
 impl website_new::OrgFile {
-    pub fn serialize<'a, T: Mode>(&self, mode: &T, layout: &'a LayoutInfo) -> SerializedPost<'a> {
-        SerializedPost { layout }
+    pub fn serialize<'a, T: Mode>(&'a self, website: &'a website_new::Website, mode: &T, layout: &'a LayoutInfo) -> Result<SerializedPost<'a>, rendering::HTMLExportError> {
+        Ok(SerializedPost {
+            layout,
+            published: self.published,
+            last_edit: self.last_edit,
+            content: self.render_html(website, mode)?,
+            summary: self.from_preamble("summary"),
+            title: self.title().to_string() + " | Johannes Huwald",
+            heading: self.title(),
+            id: self.id()
+        })
     }
 }

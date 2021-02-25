@@ -146,14 +146,15 @@ impl Builder<'_> {
         let layout = LayoutInfo::new(&self.website, &mode);
 
         let mut file = self.prepare_file(&self.website, output_path)?;
-        self.theme.render(&mut file, "page",
-                          &self.website.serialize(&mode, &layout)?)?;
+        let ser = &self.website.serialize(&mode, &layout)?;
+        self.theme.render(&mut file, "page", &ser)?;
+        Builder::copy_images(&self.website, &mode, &ser.image_deps)?;
 
         for page in self.website.pages.values() {
             let mut file = self.prepare_file(page, output_path)?;
-            self.theme.render(&mut file, "page",
-                              &page.serialize(&self.website,
-                                              &mode, &layout)?)?;
+            let ser = page.serialize(&self.website, &mode, &layout)?;
+            self.theme.render(&mut file, "page", &ser)?;
+            Builder::copy_images(page, &mode, &ser.image_deps)?;
         }
 
         for project in self.website.projects.values() {
@@ -163,14 +164,20 @@ impl Builder<'_> {
 
             for post in project.posts.values() {
                 let mut file = self.prepare_file(post, output_path)?;
-                self.theme.render(&mut file, "post",
-                                  &post.serialize(&self.website,
-                                                  &mode, &layout)?)?;
+                let ser = post.serialize(&self.website, &mode, &layout)?;
+                self.theme.render(&mut file, "post", &ser)?;
+                Builder::copy_images(post, &mode, &ser.image_deps)?;
+
             }
         }
 
         Ok(())
     }
+
+    fn copy_images<T: BlogElement, TMode: Mode>(elem: &T, mode: &TMode, images: &Vec<String>) -> Result<(), IOError>{
+        Ok(())
+    }
+
 
     fn prepare_file<T: BlogElement>(&self, elem: &T, output_path: &str) -> Result<File, IOError> {
         let filename = elem.url(&self.website, output_path.to_string());

@@ -28,6 +28,8 @@ pub struct SerializedPost<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     last_edit: Option<chrono::naive::NaiveDate>,
     content: String,
+    #[serde(skip)]
+    pub image_deps: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     summary: Option<&'a str>,
     title: String,
@@ -121,11 +123,13 @@ impl website_new::Project {
 
 impl website_new::OrgFile {
     pub fn serialize<'a, T: Mode>(&'a self, website: &'a website_new::Website, mode: &T, layout: &'a LayoutInfo) -> Result<SerializedPost<'a>, rendering::HTMLExportError> {
+        let rr = self.render_html(website, mode)?;
         Ok(SerializedPost {
             layout,
             published: self.published,
             last_edit: self.last_edit,
-            content: self.render_html(website, mode)?,
+            content: rr.content,
+            image_deps: rr.image_deps,
             summary: self.from_preamble("summary"),
             title: self.title().to_string() + " | Johannes Huwald",
             heading: self.title(),

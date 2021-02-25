@@ -3,6 +3,7 @@ use std::io::{Error as IOError, Write};
 
 use super::Mode;
 use super::website_new;
+use super::website_new::BlogElement;
 
 use orgize::{Org, Element};
 use orgize::elements;
@@ -37,24 +38,35 @@ pub struct OrgHTMLHandler<'a> {
     post: Option<&'a website_new::OrgFile>,
     fallback: DefaultHtmlHandler,
     attributes: Vec<String>,
-    base_url: String
+    base_url: String,
+    image_deps: Vec<String>
+}
+
+pub struct RenderResult {
+    pub content: String,
+    pub image_deps: Vec<String>
 }
 
 impl<'a> OrgHTMLHandler<'a> {
     pub fn render_post<T: Mode>(website: &website_new::Website,
                                 post: &website_new::OrgFile,
-                                mode: &T) -> Result<String, HTMLExportError> {
+                                mode: &T) -> Result<RenderResult,
+                                                    HTMLExportError> {
         let parser = Org::parse(&post.contents);
         let mut handler = OrgHTMLHandler {
             website: Some(website),
             post: Some(post),
             fallback: DefaultHtmlHandler::default(),
             attributes: Vec::new(),
-            base_url: mode.base_url()
+            base_url: mode.base_url(),
+            image_deps: Vec::new()
         };
         let mut writer = Vec::new();
         parser.write_html_custom(&mut writer, &mut handler)?;
-        Ok(String::from_utf8(writer)?)
+        Ok(RenderResult {
+            content: String::from_utf8(writer)?,
+            image_deps: handler.image_deps
+        })
     }
 
     /// return true if the fallback rendering should be used
@@ -101,10 +113,24 @@ impl<'a> OrgHTMLHandler<'a> {
         Ok(false)
     }
 
-    fn resolve_link(&self, link: &str) -> Result<ResolvedInternalLink, HTMLExportError> {
+    fn resolve_link(&mut self, link: &str) -> Result<ResolvedInternalLink, HTMLExportError> {
         let website = self.website.unwrap();
         let post = self.post.unwrap();
-        Ok(ResolvedInternalLink::Post(link.to_string()))
+
+        match link.split(".").last().unwrap() {
+            "org" => {
+                let path = post.resolve_link(link);
+                let link = website.resolve_path(&path).unwrap();
+                Ok(ResolvedInternalLink::Post(link.url(&website,
+                                                       self.base_url.clone())))
+            },
+            "png" | "jpeg" => {
+                self.image_deps.push(String::from(link));
+                Ok(ResolvedInternalLink::Image(link.to_string()))
+            },
+            _ => panic!("Unknown file ending for link in {:?}", post.path)
+        }
+
     }
 
     fn render_image<W: Write>(&self, w: &mut W, src: &str, alt: Option<&str>) -> Result<(), HTMLExportError> {
@@ -173,7 +199,7 @@ impl HtmlHandler<HTMLExportError> for OrgHTMLHandler<'_> {
 
 
 impl website_new::OrgFile {
-    pub fn render_html<T: Mode>(&self, website: &website_new::Website, mode: &T) -> Result<String, HTMLExportError> {
+    pub fn render_html<T: Mode>(&self, website: &website_new::Website, mode: &T) -> Result<RenderResult, HTMLExportError> {
         OrgHTMLHandler::render_post(website, self, mode)
     }
 }

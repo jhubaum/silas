@@ -145,28 +145,29 @@ impl Builder<'_> {
         let mode = TMode::create(output_path);
         let layout = LayoutInfo::new(&self.website, &mode);
 
-        let mut file = self.prepare_file(&self.website, output_path)?;
-        let ser = &self.website.serialize(&mode, &layout)?;
-        self.theme.render(&mut file, "page", &ser)?;
-        Builder::copy_images(&self.website, &mode, &ser.image_deps)?;
+        let mut ser = self.website.serialize(&mode, &layout)?;
+        let file = self.prepare_file(&self.website, output_path,
+                                     &mut ser.folder_out)?;
+        self.render_element(file, "page", &ser)?;
 
         for page in self.website.pages.values() {
-            let mut file = self.prepare_file(page, output_path)?;
-            let ser = page.serialize(&self.website, &mode, &layout)?;
-            self.theme.render(&mut file, "page", &ser)?;
-            Builder::copy_images(page, &mode, &ser.image_deps)?;
+            let mut ser = page.serialize(&self.website, &mode, &layout)?;
+            let file = self.prepare_file(page, output_path,
+                                         &mut ser.folder_out)?;
+            self.render_element(file, "page", &ser)?;
         }
 
         for project in self.website.projects.values() {
-            let mut file = self.prepare_file(project, output_path)?;
-            self.theme.render(&mut file, "project",
-                              &project.serialize(&mode, &layout))?;
+            let mut ser = project.serialize(&mode, &layout);
+            let file = self.prepare_file(project, output_path,
+                                         &mut ser.folder_out)?;
+            self.render_element(file, "project", &ser)?;
 
             for post in project.posts.values() {
-                let mut file = self.prepare_file(post, output_path)?;
-                let ser = post.serialize(&self.website, &mode, &layout)?;
-                self.theme.render(&mut file, "post", &ser)?;
-                Builder::copy_images(post, &mode, &ser.image_deps)?;
+                let mut ser = post.serialize(&self.website, &mode, &layout)?;
+                let file = self.prepare_file(post, output_path,
+                                             &mut ser.folder_out)?;
+                self.render_element(file, "post", &ser)?;
 
             }
         }
@@ -174,14 +175,20 @@ impl Builder<'_> {
         Ok(())
     }
 
-    fn copy_images<T: BlogElement, TMode: Mode>(elem: &T, mode: &TMode, images: &Vec<String>) -> Result<(), IOError>{
+    fn render_element<T: Serialize>(&self, mut file: File, template: &str, elem: &serialize::SerializedResult<T>) -> Result<(), RenderError> {
+        for img in elem.image_deps.iter() {
+            fs::copy(elem.folder_in.clone() + "/" + img,
+                     elem.folder_out.clone() + "/" + img)?;
+        }
+        self.theme.render(&mut file, template, &elem.elem)?;
         Ok(())
     }
 
 
-    fn prepare_file<T: BlogElement>(&self, elem: &T, output_path: &str) -> Result<File, IOError> {
+    fn prepare_file<T: BlogElement>(&self, elem: &T, output_path: &str, folder_out: &mut String) -> Result<File, IOError> {
         let filename = elem.url(&self.website, output_path.to_string());
         fs::create_dir_all(&filename)?;
+        *folder_out = filename.clone();
         let filename = filename + "/index.html";
         Ok(File::create(&filename)?)
     }

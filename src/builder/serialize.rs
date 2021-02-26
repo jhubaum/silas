@@ -28,13 +28,29 @@ pub struct SerializedPost<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     last_edit: Option<chrono::naive::NaiveDate>,
     content: String,
-    #[serde(skip)]
-    pub image_deps: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     summary: Option<&'a str>,
     title: String,
     heading: &'a str,
     id: &'a str
+}
+
+pub struct SerializedResult<T: Serialize> {
+    pub elem: T,
+    pub image_deps: Vec<String>,
+    pub folder_in: String,
+    pub folder_out: String
+}
+
+impl<T: Serialize> SerializedResult<T> {
+    fn no_deps(elem: T) -> Self {
+        Self {
+            elem,
+            image_deps: Vec::new(),
+            folder_in: String::new(),
+            folder_out: String::new()
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -104,36 +120,45 @@ impl LayoutInfo {
 }
 
 impl website_new::Website {
-    pub fn serialize<'a, T: Mode>(&'a self, mode: &T, layout: &'a LayoutInfo) -> Result<SerializedPost<'a>, rendering::HTMLExportError> {
+    pub fn serialize<'a, T: Mode>(&'a self, mode: &T, layout: &'a LayoutInfo) -> Result<SerializedResult<SerializedPost<'a>>, rendering::HTMLExportError> {
         self.page_by_id("about").unwrap().serialize(self, mode, layout)
     }
 }
 
 impl website_new::Project {
-    pub fn serialize<'a, T: Mode>(&'a self, _mode: &T, layout: &'a LayoutInfo) -> SerializedProjectIndex<'a> {
+    pub fn serialize<'a, T: Mode>(&'a self, _mode: &T, layout: &'a LayoutInfo) -> SerializedResult<SerializedProjectIndex<'a>> {
         // https://rust-lang-nursery.github.io/rust-cookbook/algorithms/sorting.html
-        SerializedProjectIndex {
-            layout,
-            title: self.title().to_string() + " | Johannes Huwald",
-            heading: self.title().to_string(),
-            posts: self.posts.values().map(|p| p.into()).collect()
-        }
+        SerializedResult::no_deps(
+            SerializedProjectIndex {
+                layout,
+                title: self.title().to_string() + " | Johannes Huwald",
+                heading: self.title().to_string(),
+                posts: self.posts.values().map(|p| p.into()).collect()
+            }
+        )
     }
 }
 
 impl website_new::OrgFile {
-    pub fn serialize<'a, T: Mode>(&'a self, website: &'a website_new::Website, mode: &T, layout: &'a LayoutInfo) -> Result<SerializedPost<'a>, rendering::HTMLExportError> {
+    pub fn serialize<'a, T: Mode>(&'a self, website: &'a website_new::Website, mode: &T, layout: &'a LayoutInfo) -> Result<SerializedResult<SerializedPost<'a>>, rendering::HTMLExportError> {
         let rr = self.render_html(website, mode)?;
-        Ok(SerializedPost {
-            layout,
-            published: self.published,
-            last_edit: self.last_edit,
-            content: rr.content,
+        let mut folder_in = self.path.clone();
+        folder_in.pop();
+        let folder_in = folder_in.to_str().unwrap().to_string();
+        Ok(SerializedResult {
             image_deps: rr.image_deps,
-            summary: self.from_preamble("summary"),
-            title: self.title().to_string() + " | Johannes Huwald",
-            heading: self.title(),
-            id: self.id()
+            folder_in,
+            folder_out: String::new(),
+            elem: SerializedPost {
+                layout,
+                published: self.published,
+                last_edit: self.last_edit,
+                content: rr.content,
+                summary: self.from_preamble("summary"),
+                title: self.title().to_string() + " | Johannes Huwald",
+                heading: self.title(),
+                id: self.id()
+            }
         })
     }
 }

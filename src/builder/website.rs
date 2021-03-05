@@ -1,285 +1,324 @@
-use std::path::{Path, PathBuf, Iter};
-use std::io::{self, Error as IOError};
+use std::collections::{HashMap, HashSet};
+use std::io::Error as IOError;
+use std::path::{Path, PathBuf};
+use std::string::FromUtf8Error;
+
+use orgize::{Element, Event, Org};
 use std::fs;
-use std::collections::HashMap;
-
-use chrono::naive;
-
-
-use super::GenerationError;
-use super::org;
-use super::org::{OrgLoadError, OrgFile, OrgHTMLHandler};
-use super::context::RenderContext;
 
 #[derive(Debug)]
-pub enum WebsiteLoadError {
-    Project(ProjectLoadError),
-    Org(OrgLoadError),
-}
-
-#[derive(Debug)]
-pub enum ProjectLoadError {
-    Org(OrgLoadError),
+pub enum LoadError {
     IO(IOError),
+    DuplicateFileID(String),
+    UTF8(FromUtf8Error),
+    Date(chrono::ParseError),
 }
 
-impl From<ProjectLoadError> for WebsiteLoadError {
-    fn from(err: ProjectLoadError) -> Self {
-        WebsiteLoadError::Project(err)
-    }
-}
-
-impl From<OrgLoadError> for WebsiteLoadError {
-    fn from(err: OrgLoadError) -> Self {
-        WebsiteLoadError::Org(err)
-    }
-}
-
-impl From<OrgLoadError> for ProjectLoadError {
-    fn from(err: OrgLoadError) -> Self {
-        ProjectLoadError::Org(err)
-    }
-}
-
-impl From<IOError> for ProjectLoadError {
+impl From<IOError> for LoadError {
     fn from(err: IOError) -> Self {
-        ProjectLoadError::IO(err)
+        Self::IO(err)
+    }
+}
+
+impl From<FromUtf8Error> for LoadError {
+    fn from(err: FromUtf8Error) -> Self {
+        Self::UTF8(err)
+    }
+}
+
+impl From<chrono::ParseError> for LoadError {
+    fn from(err: chrono::ParseError) -> Self {
+        Self::Date(err)
     }
 }
 
 pub struct Website {
-    pub pages: HashMap<String, Post>,
-    pub projects: Vec<Project>,
-    pub path: PathBuf,
-}
-
-#[derive(Copy, Clone, PartialEq, Eq)]
-pub struct ProjectIndex {
-    index: usize
+    pub projects: HashMap<String, Project>,
+    pub pages: HashMap<PathBuf, OrgFile>,
 }
 
 pub struct Project {
-    pub index: ProjectIndex,
-    pub posts: Vec<Post>,
-    pub id: String,
-    path: PathBuf
+    pub posts: HashMap<PathBuf, OrgFile>,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
-pub struct PostIndex {
-    pub index: usize,
-    pub project: Option<ProjectIndex>
-}
-
-impl PostIndex {
-    fn without_project(index: usize) -> Self {
-        PostIndex { index, project: None }
-    }
-}
-
-impl Default for PostIndex {
-    fn default() -> Self {
-        PostIndex { index: 0, project: None }
-    }
-}
-
-pub struct Post {
-    pub index: PostIndex,
-    pub title: String,
-    pub published: Option<naive::NaiveDate>,
-    pub last_edit: Option<naive::NaiveDate>,
-    pub extra_css: Vec<String>,
+#[derive(Clone)]
+pub struct OrgFile {
+    id: String,
+    preamble: HashMap<String, String>,
     pub path: PathBuf,
-    orgfile: OrgFile
+    pub contents: String,
+    pub published: Option<chrono::naive::NaiveDate>,
+    pub last_edit: Option<chrono::naive::NaiveDate>,
+}
+
+pub trait BlogElement {
+    fn url(&self, website: &Website, base: String) -> String;
+    fn title(&self) -> &str;
+    fn description(&self) -> &str;
 }
 
 const IGNORED_FOLDERS: [&str; 1] = ["drafts"];
-const IGNORED_FILES: [&str; 1] = ["ideas.org"];
+const IGNORED_FILES: [&str; 2] = ["ideas.org", "index.org"];
 
 impl Website {
-    pub fn load(path: &Path) -> Result<Self, WebsiteLoadError> {
-        let mut website = Website {
-            pages: HashMap::new(),
-            projects: vec![],
-            path: path.to_path_buf()
-        };
-        for entry in path.read_dir().expect("Path does not exist") {
-            if let Ok(entry) = entry {
-                let p = entry.path();
-                if p.is_dir() {
-                    let filename = p.file_name().unwrap().to_str().unwrap();
-                    if IGNORED_FOLDERS.contains(&filename) {
-                        continue;
-                    }
-                    website.projects.push(Project::load(&p, ProjectIndex { index: website.projects.len() })?);
-                } else if p.file_name().unwrap() == "index.org" {
-                    // create index file here
-                } else if p.extension().unwrap() == "org" {
-                    let filename = p.file_name().unwrap().to_str().unwrap();
-                    if IGNORED_FILES.contains(&filename) {
-                        continue;
-                    }
-                    let post = Post::load(&p, PostIndex::without_project(website.pages.len()))?;
-                    let id = post.id().to_string();
-                    website.pages.insert(id, post);
-                }
+    pub fn load(path: &str) -> Result<Self, LoadError> {
+        let path = Path::new(path);
+
+        // for now, there's only one project, the blog, that simply collects
+        // all posts in all folders of the website. In the longterm, rework
+        // this so that it gets a foldername as input and uses only it.
+        let mut projects = HashMap::new();
+        projects.insert(String::from("blog"), Project::load(path)?);
+
+        let mut pages = HashMap::new();
+        for file in path.read_dir()? {
+            let path = file?.path();
+            let filename = path.file_name().unwrap().to_str().unwrap();
+
+            if !path.is_file()
+                || path.extension().unwrap() != "org"
+                || IGNORED_FILES.contains(&filename)
+            {
+                continue;
+            }
+            let org = OrgFile::load(&path)?;
+            pages.insert(org.path.clone(), org);
+        }
+
+        let mut links = HashMap::new();
+        for proj in projects.values() {
+            for post in proj.posts.values() {
+                links.insert(post.path.as_path(), post);
             }
         }
 
-        Ok(website)
+        Ok(Website { projects, pages })
     }
 
-    pub fn url(&self) -> String {
-        String::from("https://jhuwald.com")
+    pub fn resolve_path(&self, path: &Path) -> Option<&OrgFile> {
+        if let Some(page) = self.pages.get(path) {
+            return Some(page);
+        }
+
+        for proj in self.projects.values() {
+            if let Some(post) = proj.posts.get(path) {
+                return Some(post);
+            }
+        }
+
+        None
     }
 
-    pub fn find_post_from_path(&self, path: PathBuf) -> Option<&Post> {
-        let mut iter = path.iter();
-
-        for c in self.path.iter() {
-            let cur = iter.next();
-            if cur.is_none() || cur.unwrap() != c {
-                // given path isn't a subpath of website
-                println!("Link points to file outside of website directory");
-                return None;
+    pub fn page_by_id(&self, id: &str) -> Option<&OrgFile> {
+        for page in self.pages.values() {
+            if page.id() == id {
+                return Some(&page);
             }
         }
-
-        let proj_name = iter.next();
-        if proj_name.is_none() {
-            return None;
-        }
-        let proj_name = proj_name.unwrap().to_str().unwrap().to_string();
-
-        for p in &self.projects {
-            if p.id == proj_name {
-                return p.find_post_from_path(iter);
-            }
-        }
-
-        let mut path = self.path.clone();
-        path.push(proj_name);
-
-        for p in self.pages.values() {
-            if p.path == path {
-                return Some(p);
-            }
-        }
-        return None;
-    }
-
-    pub fn get_relative_url(&self, from: &Post, to: &Post) -> String {
-        let base = String::from("../");
-        if from.index.project == to.index.project {
-            return base + to.id();
-        }
-
-        match from.index.project {
-            None => {
-                // to has to have a project
-                base + "blog/" + to.id()
-            },
-            Some(_) => {
-                // different or no project
-                if to.index.project.is_none() {
-                    base + "../" + to.id()
-                } else {
-                    base + to.id()
-                }
-            }
-        }
+        None
     }
 }
 
+fn find_all_project_files(path: &Path) -> Result<Vec<PathBuf>, IOError> {
+    let mut files = Vec::new();
+    let mut folders = Vec::new();
 
-fn visit_dirs(dir: &Path, files: &mut Vec::<PathBuf>) -> io::Result<()> {
-    if dir.is_dir() {
-        for entry in fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
+    // load all folders in website directory
+    for path in path.read_dir()? {
+        let path = path?.path();
+        let filename = path.file_name().unwrap().to_str().unwrap();
+        if path.is_dir() && !IGNORED_FOLDERS.contains(&filename) {
+            folders.push(path);
+        }
+    }
+
+    // iterate over all folders and find files
+    while folders.len() > 0 {
+        let path = folders.pop().unwrap();
+        for path in path.read_dir()? {
+            let path = path?.path();
             if path.is_dir() {
-                visit_dirs(&path, files)?;
+                folders.push(path);
             } else {
                 files.push(path);
             }
         }
     }
-    Ok(())
+
+    Ok(files)
 }
 
 impl Project {
-    pub fn load(path: &PathBuf, index: ProjectIndex) -> Result<Self, ProjectLoadError> {
-        let mut filenames = Vec::<PathBuf>::new();
-        visit_dirs(path, &mut filenames)?;
-        let mut posts = Vec::<Post>::new();
-        for f in filenames.iter() {
-            if f.file_name().unwrap() == "index.org" {
-                // create index file here
-            } else if f.extension().unwrap() == "org" {
-                posts.push(Post::load(&f, PostIndex { index: posts.len(), project: Some(index) })?);
+    fn load(path: &Path) -> Result<Self, LoadError> {
+        // for now, there's only one project, the blog, that simply collects
+        // all posts in all folders of the website. In the longterm, rework
+        // this so that it gets a foldername as input and uses only it.
+
+        let mut posts = HashMap::new();
+        let mut ids = HashSet::new();
+        for path in find_all_project_files(path)?.iter() {
+            if path.file_name().unwrap() == "index.org" || path.extension().unwrap() != "org" {
+                continue;
             }
-        }
-        Ok(Project { posts, index, path: path.clone(),
-                     id: path.file_name().unwrap()
-                         .to_str().unwrap().to_string() })
-    }
-
-    fn find_post_from_path(&self, iter: Iter) -> Option<&Post> {
-        let mut path = self.path.clone();
-        for c in iter {
-            path.push(c);
-        }
-
-        for post in &self.posts {
-            if post.path == path {
-                return Some(post);
+            let org = OrgFile::load(path)?;
+            if ids.contains(org.id()) {
+                return Err(LoadError::DuplicateFileID(org.id().to_string()));
             }
+            ids.insert(org.id().to_string());
+
+            posts.insert(org.path.clone(), org);
         }
-        return None;
-    }
-}
 
-impl Post {
-    pub fn load(filename: &PathBuf, index: PostIndex) -> Result<Self, OrgLoadError> {
-        let f = OrgFile::load(filename)?;
-
-        let published = match f.preamble.get("published") {
-            None => None,
-            Some(d) => Some(org::parse_date(d)?)
-        };
-
-        let last_edit = match f.preamble.get("last_edit") {
-            None => None,
-            Some(d) => Some(org::parse_date(d)?)
-        };
-
-
-        let title = match f.preamble.get("title") {
-            None => String::from("NO TITLE"),
-            Some(t) => t.clone()
-        };
-
-        Ok(Post {
-            index, title, published, last_edit,
-            path: filename.to_path_buf(),
-            orgfile: f,
-            extra_css: vec![]
-        })
-    }
-
-    pub fn summary(&self) -> Option<&str> {
-        match self.orgfile.preamble.get("summary") {
-            None => None,
-            Some(s) => Some(&s)
-        }
+        Ok(Project { posts })
     }
 
     pub fn id(&self) -> &str {
-        &self.orgfile.filename
+        "blog"
+    }
+}
+
+impl OrgFile {
+    fn load(path: &PathBuf) -> Result<Self, LoadError> {
+        let ext = path.extension();
+        if ext.is_none() || ext.unwrap() != "org" {
+            panic!(
+                "Trying to load {:?} as orgfile. This shouldn't happen",
+                path
+            );
+        }
+
+        let contents = String::from_utf8(fs::read(path)?)?;
+        let parser = Org::parse(&contents);
+
+        let preamble = OrgFile::extract_preamble(&parser, path);
+        let published = match preamble.get("published") {
+            None => None,
+            Some(d) => Some(OrgFile::parse_date(&d)?),
+        };
+        let last_edit = match preamble.get("last-edit") {
+            None => None,
+            Some(d) => Some(OrgFile::parse_date(&d)?),
+        };
+
+        Ok(OrgFile {
+            id: path.file_stem().unwrap().to_str().unwrap().to_string(),
+            path: path.clone(),
+            contents,
+            preamble,
+            published,
+            last_edit,
+        })
     }
 
-    pub fn content(&self, context: &RenderContext) -> Result<String, GenerationError> {
-        let mut handler = OrgHTMLHandler::new(context);
-        self.orgfile.to_html(&mut handler)
+    fn extract_preamble(org: &Org, filename: &Path) -> HashMap<String, String> {
+        let mut iter = org.iter();
+        iter.next(); // Start document
+        iter.next(); // Start section
+
+        let mut preamble = HashMap::new();
+        loop {
+            match iter.next() {
+                None => break,
+                Some(Event::End(_)) => continue,
+                Some(Event::Start(Element::Keyword(k))) => {
+                    if k.value.len() == 0 {
+                        println!(
+                            "Warning: encountered empty keyword '{}' while parsing org file {:?}",
+                            k.key, filename
+                        );
+                    } else {
+                        preamble.insert(k.key.to_string().to_lowercase(), k.value.to_string());
+                    }
+                }
+                Some(Event::Start(_)) => break,
+            };
+        }
+        preamble
+    }
+
+    fn parse_date(date_str: &str) -> chrono::ParseResult<chrono::naive::NaiveDate> {
+        chrono::naive::NaiveDate::parse_from_str(date_str, "<%Y-%m-%d>")
+    }
+
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    pub fn from_preamble<'a>(&'a self, key: &str) -> Option<&'a str> {
+        return self.preamble.get(key).and_then(|s| Some(s.as_str()));
+    }
+
+    pub fn resolve_link(&self, link: &str) -> PathBuf {
+        let mut path = self.path.clone();
+        path.pop();
+
+        for part in Path::new(link) {
+            match part.to_str().unwrap() {
+                "." => {}
+                ".." => {
+                    path.pop();
+                }
+                part => path.push(part),
+            }
+        }
+
+        path
+    }
+}
+
+impl BlogElement for Website {
+    fn url(&self, _website: &Website, base: String) -> String {
+        base
+    }
+
+    fn title(&self) -> &str {
+        "Johannes Huwald"
+    }
+
+    fn description(&self) -> &str {
+        "My personal website"
+    }
+}
+
+impl BlogElement for Project {
+    fn url(&self, _website: &Website, base: String) -> String {
+        base + "/" + self.id()
+    }
+
+    fn title(&self) -> &str {
+        "Blog"
+    }
+
+    fn description(&self) -> &str {
+        "Stuff I have written"
+    }
+}
+
+impl BlogElement for OrgFile {
+    fn url(&self, website: &Website, base: String) -> String {
+        if website.pages.contains_key(&self.path) {
+            return base + "/" + self.id();
+        }
+
+        for proj in website.projects.values() {
+            if proj.posts.contains_key(&self.path) {
+                return base + "/" + proj.id() + "/" + self.id();
+            }
+        }
+        panic!("OrgFile:url called with Website that didn't load Orgfile");
+    }
+
+    fn title(&self) -> &str {
+        let title = &self.from_preamble("title");
+        assert!(
+            title.is_some(),
+            "Orgfile {:?} is missing a title",
+            self.path
+        );
+        return title.unwrap();
+    }
+
+    fn description(&self) -> &str {
+        self.from_preamble("summary").unwrap()
     }
 }

@@ -1,5 +1,5 @@
 use super::serialize::{SerializedPost, SerializedProjectIndex, SerializedResult};
-use super::website_new::{BlogElement, Website};
+use super::website::{BlogElement, Website};
 use super::Mode;
 use chrono::prelude::*;
 use std::collections::HashMap;

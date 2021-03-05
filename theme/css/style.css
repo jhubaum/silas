@@ -214,3 +214,10 @@ main {
     padding: 5px 10px;
     border-radius: 5px;
 }
+
+code {
+    padding: 2px 4px;
+    color: var(--color-black);
+    background-color: var(--color-light-grey);
+    border-radius: 4px;
+}

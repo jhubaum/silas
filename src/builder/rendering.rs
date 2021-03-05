@@ -1,8 +1,8 @@
 use std::io::{Error as IOError, Write};
 use std::string::FromUtf8Error;
 
-use super::website_new;
-use super::website_new::BlogElement;
+use super::website;
+use super::website::BlogElement;
 use super::Mode;
 
 use orgize::elements;
@@ -34,8 +34,8 @@ enum ResolvedInternalLink {
 
 #[derive(Default)]
 pub struct OrgHTMLHandler<'a> {
-    website: Option<&'a website_new::Website>,
-    post: Option<&'a website_new::OrgFile>,
+    website: Option<&'a website::Website>,
+    post: Option<&'a website::OrgFile>,
     fallback: DefaultHtmlHandler,
     attributes: Vec<String>,
     base_url: String,
@@ -49,8 +49,8 @@ pub struct RenderResult {
 
 impl<'a> OrgHTMLHandler<'a> {
     pub fn render_post<T: Mode>(
-        website: &website_new::Website,
-        post: &website_new::OrgFile,
+        website: &website::Website,
+        post: &website::OrgFile,
         mode: &T,
     ) -> Result<RenderResult, HTMLExportError> {
         let parser = Org::parse(&post.contents);
@@ -223,10 +223,10 @@ impl HtmlHandler<HTMLExportError> for OrgHTMLHandler<'_> {
     }
 }
 
-impl website_new::OrgFile {
+impl website::OrgFile {
     pub fn render_html<T: Mode>(
         &self,
-        website: &website_new::Website,
+        website: &website::Website,
         mode: &T,
     ) -> Result<RenderResult, HTMLExportError> {
         OrgHTMLHandler::render_post(website, self, mode)

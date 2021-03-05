@@ -3,15 +3,15 @@ use std::io::Error as IOError;
 use std::path::{Path, PathBuf};
 use std::string::FromUtf8Error;
 
+use orgize::{Element, Event, Org};
 use std::fs;
-use orgize::{Element, Org, Event};
 
 #[derive(Debug)]
 pub enum LoadError {
     IO(IOError),
     DuplicateFileID(String),
     UTF8(FromUtf8Error),
-    Date(chrono::ParseError)
+    Date(chrono::ParseError),
 }
 
 impl From<IOError> for LoadError {
@@ -38,7 +38,7 @@ pub struct Website {
 }
 
 pub struct Project {
-    pub posts: HashMap<PathBuf, OrgFile>
+    pub posts: HashMap<PathBuf, OrgFile>,
 }
 
 #[derive(Clone)]
@@ -48,7 +48,7 @@ pub struct OrgFile {
     pub path: PathBuf,
     pub contents: String,
     pub published: Option<chrono::naive::NaiveDate>,
-    pub last_edit: Option<chrono::naive::NaiveDate>
+    pub last_edit: Option<chrono::naive::NaiveDate>,
 }
 
 pub trait BlogElement {
@@ -74,10 +74,11 @@ impl Website {
             let path = file?.path();
             let filename = path.file_name().unwrap().to_str().unwrap();
 
-            if !path.is_file() ||
-                path.extension().unwrap() != "org" ||
-                IGNORED_FILES.contains(&filename) {
-                    continue;
+            if !path.is_file()
+                || path.extension().unwrap() != "org"
+                || IGNORED_FILES.contains(&filename)
+            {
+                continue;
             }
             let org = OrgFile::load(&path)?;
             pages.insert(org.path.clone(), org);
@@ -155,8 +156,7 @@ impl Project {
         let mut posts = HashMap::new();
         let mut ids = HashSet::new();
         for path in find_all_project_files(path)?.iter() {
-            if path.file_name().unwrap() == "index.org" ||
-                path.extension().unwrap() != "org" {
+            if path.file_name().unwrap() == "index.org" || path.extension().unwrap() != "org" {
                 continue;
             }
             let org = OrgFile::load(path)?;
@@ -168,8 +168,7 @@ impl Project {
             posts.insert(org.path.clone(), org);
         }
 
-
-        Ok (Project { posts })
+        Ok(Project { posts })
     }
 
     pub fn id(&self) -> &str {
@@ -177,12 +176,14 @@ impl Project {
     }
 }
 
-
 impl OrgFile {
     fn load(path: &PathBuf) -> Result<Self, LoadError> {
         let ext = path.extension();
         if ext.is_none() || ext.unwrap() != "org" {
-            panic!("Trying to load {:?} as orgfile. This shouldn't happen", path);
+            panic!(
+                "Trying to load {:?} as orgfile. This shouldn't happen",
+                path
+            );
         }
 
         let contents = String::from_utf8(fs::read(path)?)?;
@@ -191,21 +192,24 @@ impl OrgFile {
         let preamble = OrgFile::extract_preamble(&parser, path);
         let published = match preamble.get("published") {
             None => None,
-            Some(d) => Some(OrgFile::parse_date(&d)?)
+            Some(d) => Some(OrgFile::parse_date(&d)?),
         };
         let last_edit = match preamble.get("last-edit") {
             None => None,
-            Some(d) => Some(OrgFile::parse_date(&d)?)
+            Some(d) => Some(OrgFile::parse_date(&d)?),
         };
 
-        Ok ( OrgFile {
+        Ok(OrgFile {
             id: path.file_stem().unwrap().to_str().unwrap().to_string(),
             path: path.clone(),
-            contents, preamble, published, last_edit
-        } )
+            contents,
+            preamble,
+            published,
+            last_edit,
+        })
     }
 
-    fn extract_preamble(org: &Org, filename: &Path) -> HashMap<String, String>{
+    fn extract_preamble(org: &Org, filename: &Path) -> HashMap<String, String> {
         let mut iter = org.iter();
         iter.next(); // Start document
         iter.next(); // Start section
@@ -217,14 +221,15 @@ impl OrgFile {
                 Some(Event::End(_)) => continue,
                 Some(Event::Start(Element::Keyword(k))) => {
                     if k.value.len() == 0 {
-                        println!("Warning: encountered empty keyword '{}' while parsing org file {:?}", k.key, filename);
+                        println!(
+                            "Warning: encountered empty keyword '{}' while parsing org file {:?}",
+                            k.key, filename
+                        );
                     } else {
-                        preamble.insert(
-                            k.key.to_string().to_lowercase(),
-                            k.value.to_string());
+                        preamble.insert(k.key.to_string().to_lowercase(), k.value.to_string());
                     }
-                },
-                Some(Event::Start(_)) => break
+                }
+                Some(Event::Start(_)) => break,
             };
         }
         preamble
@@ -239,7 +244,7 @@ impl OrgFile {
     }
 
     pub fn from_preamble<'a>(&'a self, key: &str) -> Option<&'a str> {
-        return self.preamble.get(key).and_then(|s| Some(s.as_str()))
+        return self.preamble.get(key).and_then(|s| Some(s.as_str()));
     }
 
     pub fn resolve_link(&self, link: &str) -> PathBuf {
@@ -248,16 +253,17 @@ impl OrgFile {
 
         for part in Path::new(link) {
             match part.to_str().unwrap() {
-                "." => {  },
-                ".." => { path.pop(); },
-                part => path.push(part)
+                "." => {}
+                ".." => {
+                    path.pop();
+                }
+                part => path.push(part),
             }
         }
 
         path
     }
 }
-
 
 impl BlogElement for Website {
     fn url(&self, website: &Website, base: String) -> String {
@@ -271,7 +277,7 @@ impl BlogElement for Website {
 
 impl BlogElement for Project {
     fn url(&self, website: &Website, base: String) -> String {
-       base + "/" + self.id()
+        base + "/" + self.id()
     }
 
     fn title(&self) -> &str {
@@ -295,8 +301,11 @@ impl BlogElement for OrgFile {
 
     fn title(&self) -> &str {
         let title = &self.from_preamble("title");
-        assert!(title.is_some(), "Orgfile {:?} is missing a title", self.path);
+        assert!(
+            title.is_some(),
+            "Orgfile {:?} is missing a title",
+            self.path
+        );
         return title.unwrap();
     }
-
 }

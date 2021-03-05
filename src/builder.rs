@@ -1,20 +1,20 @@
 use std::collections::BinaryHeap;
 
-use std::path::{Path, PathBuf};
-use std::io::{Error as IOError};
-use std::string::FromUtf8Error;
 use std::fs;
 use std::fs::File;
+use std::io::Error as IOError;
+use std::path::{Path, PathBuf};
+use std::string::FromUtf8Error;
 
 use rss::{ChannelBuilder, ItemBuilder};
 
-use serde::ser::{Serialize, Serializer, SerializeStruct};
+use serde::ser::{Serialize, SerializeStruct, Serializer};
 
 mod theme;
 use theme::{Theme, ThemeError};
 
 pub mod website_new;
-use website_new::{Website, LoadError, BlogElement, OrgFile};
+use website_new::{BlogElement, LoadError, OrgFile, Website};
 
 mod serialize;
 use serialize::LayoutInfo;
@@ -24,7 +24,7 @@ mod rendering;
 #[derive(Debug)]
 pub enum InitError {
     Theme(ThemeError),
-    Website(LoadError)
+    Website(LoadError),
 }
 
 impl From<ThemeError> for InitError {
@@ -43,7 +43,7 @@ impl From<LoadError> for InitError {
 pub enum RenderError {
     Theme(theme::RenderError),
     HTML(rendering::HTMLExportError),
-    IO(IOError)
+    IO(IOError),
 }
 
 impl From<theme::RenderError> for RenderError {
@@ -64,10 +64,9 @@ impl From<IOError> for RenderError {
     }
 }
 
-
 pub struct Builder<'a> {
     theme: Theme<'a>,
-    website: Website
+    website: Website,
 }
 
 pub trait Mode: Sized {
@@ -78,14 +77,14 @@ pub trait Mode: Sized {
     fn include_post(&self, post: &OrgFile) -> bool;
 }
 
-pub struct ReleaseMode {  }
+pub struct ReleaseMode {}
 pub struct PreviewMode {
     path: String,
 }
 
 impl Mode for ReleaseMode {
     fn create(_output_path: &str) -> Self {
-        Self {  }
+        Self {}
     }
 
     fn base_url(&self) -> String {
@@ -93,11 +92,19 @@ impl Mode for ReleaseMode {
     }
 
     fn include_page(&self, page: &OrgFile) -> bool {
-        true
+        page.published.is_some()
     }
 
     fn include_post(&self, post: &OrgFile) -> bool {
-        true
+        if post.published.is_none() {
+            return false;
+        }
+        assert!(
+            post.from_preamble("summary").is_some(),
+            "published post {:?} is missing a summary",
+            post.path
+        );
+        return true;
     }
 }
 
@@ -113,11 +120,14 @@ impl Mode for PreviewMode {
         self.path.clone()
     }
 
-    fn include_page(&self, page: &OrgFile) -> bool {
+    fn include_page(&self, _page: &OrgFile) -> bool {
         true
     }
 
     fn include_post(&self, post: &OrgFile) -> bool {
+        if post.published.is_some() && post.from_preamble("summary").is_none() {
+            println!("published post {:?} is missing a summary", post.path);
+        }
         true
     }
 }
@@ -126,11 +136,15 @@ impl Builder<'_> {
     pub fn new(website_path: &str) -> Result<Self, InitError> {
         Ok(Builder {
             theme: Theme::load("./theme")?,
-            website: Website::load(website_path)?
+            website: Website::load(website_path)?,
         })
     }
 
-    pub fn generate<TMode: Mode>(&self, output_path: &str, overwrite_existing: bool) -> Result<(), RenderError> {
+    pub fn generate<TMode: Mode>(
+        &self,
+        output_path: &str,
+        overwrite_existing: bool,
+    ) -> Result<(), RenderError> {
         if fs::metadata(output_path).is_ok() {
             if !overwrite_existing {
                 panic!("Target folder '{}' is non-empty", output_path);
@@ -146,46 +160,58 @@ impl Builder<'_> {
         let layout = LayoutInfo::new(&self.website, &mode);
 
         let mut ser = self.website.serialize(&mode, &layout)?;
-        let file = self.prepare_file(&self.website, output_path,
-                                     &mut ser.folder_out)?;
+        let file = self.prepare_file(&self.website, output_path, &mut ser.folder_out)?;
         self.render_element(file, "page", &ser)?;
 
         for page in self.website.pages.values() {
+            if !mode.include_page(&page) {
+                continue;
+            }
             let mut ser = page.serialize(&self.website, &mode, &layout)?;
-            let file = self.prepare_file(page, output_path,
-                                         &mut ser.folder_out)?;
+            let file = self.prepare_file(page, output_path, &mut ser.folder_out)?;
             self.render_element(file, "page", &ser)?;
         }
 
         for project in self.website.projects.values() {
             let mut ser = project.serialize(&mode, &layout);
-            let file = self.prepare_file(project, output_path,
-                                         &mut ser.folder_out)?;
+            let file = self.prepare_file(project, output_path, &mut ser.folder_out)?;
             self.render_element(file, "project", &ser)?;
 
             for post in project.posts.values() {
+                if !mode.include_post(&post) {
+                    continue;
+                }
                 let mut ser = post.serialize(&self.website, &mode, &layout)?;
-                let file = self.prepare_file(post, output_path,
-                                             &mut ser.folder_out)?;
+                let file = self.prepare_file(post, output_path, &mut ser.folder_out)?;
                 self.render_element(file, "post", &ser)?;
-
             }
         }
 
         Ok(())
     }
 
-    fn render_element<T: Serialize>(&self, mut file: File, template: &str, elem: &serialize::SerializedResult<T>) -> Result<(), RenderError> {
+    fn render_element<T: Serialize>(
+        &self,
+        mut file: File,
+        template: &str,
+        elem: &serialize::SerializedResult<T>,
+    ) -> Result<(), RenderError> {
         for img in elem.image_deps.iter() {
-            fs::copy(elem.folder_in.clone() + "/" + img,
-                     elem.folder_out.clone() + "/" + img)?;
+            fs::copy(
+                elem.folder_in.clone() + "/" + img,
+                elem.folder_out.clone() + "/" + img,
+            )?;
         }
         self.theme.render(&mut file, template, &elem.elem)?;
         Ok(())
     }
 
-
-    fn prepare_file<T: BlogElement>(&self, elem: &T, output_path: &str, folder_out: &mut String) -> Result<File, IOError> {
+    fn prepare_file<T: BlogElement>(
+        &self,
+        elem: &T,
+        output_path: &str,
+        folder_out: &mut String,
+    ) -> Result<File, IOError> {
         let filename = elem.url(&self.website, output_path.to_string());
         fs::create_dir_all(&filename)?;
         *folder_out = filename.clone();

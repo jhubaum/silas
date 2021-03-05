@@ -127,13 +127,22 @@ impl website_new::Website {
 
 impl website_new::Project {
     pub fn serialize<'a, T: Mode>(&'a self, _mode: &T, layout: &'a LayoutInfo) -> SerializedResult<SerializedProjectIndex<'a>> {
-        // https://rust-lang-nursery.github.io/rust-cookbook/algorithms/sorting.html
+        let mut posts: Vec<PostSummary> = self.posts.values().map(|p| p.into()).collect();
+        posts.sort_by(|a, b| {
+            match a.published {
+                None => std::cmp::Ordering::Less,
+                Some(a) => if b.published.is_none() {
+                    std::cmp::Ordering::Greater
+                } else {
+                    a.cmp(&b.published.unwrap()).reverse()
+                }
+            }
+        });
         SerializedResult::no_deps(
             SerializedProjectIndex {
-                layout,
+                layout, posts,
                 title: self.title().to_string() + " | Johannes Huwald",
-                heading: self.title().to_string(),
-                posts: self.posts.values().map(|p| p.into()).collect()
+                heading: self.title().to_string()
             }
         )
     }

@@ -23,16 +23,16 @@ pub struct SerializedLink {
 pub struct SerializedPost<'a> {
     layout: &'a LayoutInfo,
     #[serde(skip_serializing_if = "Option::is_none")]
-    published: Option<chrono::naive::NaiveDate>,
+    pub published: Option<chrono::naive::NaiveDate>,
     #[serde(rename = "last-edit")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    last_edit: Option<chrono::naive::NaiveDate>,
-    content: String,
+    pub last_edit: Option<chrono::naive::NaiveDate>,
+    pub content: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    summary: Option<&'a str>,
-    title: String,
-    heading: &'a str,
-    id: &'a str,
+    pub summary: Option<&'a str>,
+    pub title: String,
+    pub heading: &'a str,
+    pub id: &'a str,
 }
 
 pub struct SerializedResult<T: Serialize> {
@@ -40,17 +40,7 @@ pub struct SerializedResult<T: Serialize> {
     pub image_deps: Vec<String>,
     pub folder_in: String,
     pub folder_out: String,
-}
-
-impl<T: Serialize> SerializedResult<T> {
-    fn no_deps(elem: T) -> Self {
-        Self {
-            elem,
-            image_deps: Vec::new(),
-            folder_in: String::new(),
-            folder_out: String::new(),
-        }
-    }
+    pub url: String,
 }
 
 #[derive(Serialize)]
@@ -66,8 +56,9 @@ struct PostSummary<'a> {
 #[derive(Serialize)]
 pub struct SerializedProjectIndex<'a> {
     layout: &'a LayoutInfo,
-    title: String,
-    heading: String,
+    pub title: String,
+    pub heading: String,
+    pub description: &'a str,
     posts: Vec<PostSummary<'a>>,
 }
 
@@ -133,6 +124,7 @@ impl website_new::Website {
 impl website_new::Project {
     pub fn serialize<'a, T: Mode>(
         &'a self,
+        website: &'a website_new::Website,
         mode: &T,
         layout: &'a LayoutInfo,
     ) -> SerializedResult<SerializedProjectIndex<'a>> {
@@ -153,12 +145,19 @@ impl website_new::Project {
                 }
             }
         });
-        SerializedResult::no_deps(SerializedProjectIndex {
-            layout,
-            posts,
-            title: self.title().to_string() + " | Johannes Huwald",
-            heading: self.title().to_string(),
-        })
+        SerializedResult {
+            elem: SerializedProjectIndex {
+                layout,
+                posts,
+                title: self.title().to_string() + " | Johannes Huwald",
+                heading: self.title().to_string(),
+                description: self.description(),
+            },
+            image_deps: Vec::new(),
+            folder_in: String::new(),
+            folder_out: String::new(),
+            url: self.url(&website, mode.base_url()),
+        }
     }
 }
 
@@ -177,6 +176,7 @@ impl website_new::OrgFile {
             image_deps: rr.image_deps,
             folder_in,
             folder_out: String::new(),
+            url: self.url(&website, mode.base_url()),
             elem: SerializedPost {
                 layout,
                 published: self.published,

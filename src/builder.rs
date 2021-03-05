@@ -6,12 +6,12 @@ use std::io::Error as IOError;
 use std::path::{Path, PathBuf};
 use std::string::FromUtf8Error;
 
-use rss::{ChannelBuilder, ItemBuilder};
-
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 
 mod theme;
 use theme::{Theme, ThemeError};
+
+mod rss;
 
 pub mod website_new;
 use website_new::{BlogElement, LoadError, OrgFile, Website};
@@ -44,6 +44,7 @@ pub enum RenderError {
     Theme(theme::RenderError),
     HTML(rendering::HTMLExportError),
     IO(IOError),
+    RSS(rss::Error),
 }
 
 impl From<theme::RenderError> for RenderError {
@@ -64,6 +65,12 @@ impl From<IOError> for RenderError {
     }
 }
 
+impl From<rss::Error> for RenderError {
+    fn from(err: rss::Error) -> Self {
+        Self::RSS(err)
+    }
+}
+
 pub struct Builder<'a> {
     theme: Theme<'a>,
     website: Website,
@@ -75,6 +82,7 @@ pub trait Mode: Sized {
 
     fn include_page(&self, page: &OrgFile) -> bool;
     fn include_post(&self, post: &OrgFile) -> bool;
+    fn include_rss(&self) -> bool;
 }
 
 pub struct ReleaseMode {}
@@ -106,6 +114,10 @@ impl Mode for ReleaseMode {
         );
         return true;
     }
+
+    fn include_rss(&self) -> bool {
+        true
+    }
 }
 
 impl Mode for PreviewMode {
@@ -129,6 +141,10 @@ impl Mode for PreviewMode {
             println!("published post {:?} is missing a summary", post.path);
         }
         true
+    }
+
+    fn include_rss(&self) -> bool {
+        false
     }
 }
 
@@ -158,6 +174,7 @@ impl Builder<'_> {
 
         let mode = TMode::create(output_path);
         let layout = LayoutInfo::new(&self.website, &mode);
+        let mut rss = rss::RSSBuilder::new(&self.website, &mode);
 
         let mut ser = self.website.serialize(&mode, &layout)?;
         let file = self.prepare_file(&self.website, output_path, &mut ser.folder_out)?;
@@ -168,12 +185,14 @@ impl Builder<'_> {
                 continue;
             }
             let mut ser = page.serialize(&self.website, &mode, &layout)?;
+            rss.insert_file(&ser);
             let file = self.prepare_file(page, output_path, &mut ser.folder_out)?;
             self.render_element(file, "page", &ser)?;
         }
 
         for project in self.website.projects.values() {
-            let mut ser = project.serialize(&mode, &layout);
+            let mut ser = project.serialize(&self.website, &mode, &layout);
+            rss.start_project(project.id(), &ser);
             let file = self.prepare_file(project, output_path, &mut ser.folder_out)?;
             self.render_element(file, "project", &ser)?;
 
@@ -182,10 +201,14 @@ impl Builder<'_> {
                     continue;
                 }
                 let mut ser = post.serialize(&self.website, &mode, &layout)?;
+                rss.insert_file(&ser);
                 let file = self.prepare_file(post, output_path, &mut ser.folder_out)?;
                 self.render_element(file, "post", &ser)?;
             }
+            rss.finish_project();
         }
+
+        rss.write_feeds(output_path)?;
 
         Ok(())
     }

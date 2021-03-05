@@ -54,6 +54,7 @@ pub struct OrgFile {
 pub trait BlogElement {
     fn url(&self, website: &Website, base: String) -> String;
     fn title(&self) -> &str;
+    fn description(&self) -> &str;
 }
 
 const IGNORED_FOLDERS: [&str; 1] = ["drafts"];
@@ -273,6 +274,10 @@ impl BlogElement for Website {
     fn title(&self) -> &str {
         "Johannes Huwald"
     }
+
+    fn description(&self) -> &str {
+        "My personal website"
+    }
 }
 
 impl BlogElement for Project {
@@ -282,6 +287,10 @@ impl BlogElement for Project {
 
     fn title(&self) -> &str {
         "Blog"
+    }
+
+    fn description(&self) -> &str {
+        "Stuff I have written"
     }
 }
 
@@ -307,5 +316,9 @@ impl BlogElement for OrgFile {
             self.path
         );
         return title.unwrap();
+    }
+
+    fn description(&self) -> &str {
+        self.from_preamble("summary").unwrap()
     }
 }

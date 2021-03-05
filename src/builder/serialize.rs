@@ -1,6 +1,6 @@
 use super::rendering;
-use super::website_new;
-use super::website_new::BlogElement;
+use super::website;
+use super::website::BlogElement;
 use super::Mode;
 use serde::Serialize;
 
@@ -62,8 +62,8 @@ pub struct SerializedProjectIndex<'a> {
     posts: Vec<PostSummary<'a>>,
 }
 
-impl<'a> From<&'a website_new::OrgFile> for PostSummary<'a> {
-    fn from(post: &'a website_new::OrgFile) -> Self {
+impl<'a> From<&'a website::OrgFile> for PostSummary<'a> {
+    fn from(post: &'a website::OrgFile) -> Self {
         PostSummary {
             heading: post.title(),
             id: post.id(),
@@ -76,7 +76,7 @@ impl<'a> From<&'a website_new::OrgFile> for PostSummary<'a> {
 impl SerializedLink {
     fn from_blog_element<TElem: BlogElement, TMode: Mode>(
         elem: &TElem,
-        website: &website_new::Website,
+        website: &website::Website,
         mode: &TMode,
     ) -> Self {
         SerializedLink {
@@ -87,7 +87,7 @@ impl SerializedLink {
 }
 
 impl LayoutInfo {
-    pub fn new<T: Mode>(website: &website_new::Website, mode: &T) -> Self {
+    pub fn new<T: Mode>(website: &website::Website, mode: &T) -> Self {
         let mut header = Vec::new();
         for page in website.pages.values() {
             if mode.include_page(page) {
@@ -109,7 +109,7 @@ impl LayoutInfo {
     }
 }
 
-impl website_new::Website {
+impl website::Website {
     pub fn serialize<'a, T: Mode>(
         &'a self,
         mode: &T,
@@ -121,10 +121,10 @@ impl website_new::Website {
     }
 }
 
-impl website_new::Project {
+impl website::Project {
     pub fn serialize<'a, T: Mode>(
         &'a self,
-        website: &'a website_new::Website,
+        website: &'a website::Website,
         mode: &T,
         layout: &'a LayoutInfo,
     ) -> SerializedResult<SerializedProjectIndex<'a>> {
@@ -161,10 +161,10 @@ impl website_new::Project {
     }
 }
 
-impl website_new::OrgFile {
+impl website::OrgFile {
     pub fn serialize<'a, T: Mode>(
         &'a self,
-        website: &'a website_new::Website,
+        website: &'a website::Website,
         mode: &T,
         layout: &'a LayoutInfo,
     ) -> Result<SerializedResult<SerializedPost<'a>>, rendering::HTMLExportError> {

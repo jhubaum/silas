@@ -1,25 +1,19 @@
-use std::collections::BinaryHeap;
-
 use std::fs;
 use std::fs::File;
 use std::io::Error as IOError;
-use std::path::{Path, PathBuf};
-use std::string::FromUtf8Error;
+use std::path::{PathBuf};
+use serde::ser::Serialize;
 
-use serde::ser::{Serialize, SerializeStruct, Serializer};
-
+mod website;
 mod theme;
-use theme::{Theme, ThemeError};
-
 mod rss;
-
-pub mod website_new;
-use website_new::{BlogElement, LoadError, OrgFile, Website};
-
 mod serialize;
+mod rendering;
+
+use theme::{Theme, ThemeError};
+use website::{BlogElement, LoadError, OrgFile, Website};
 use serialize::LayoutInfo;
 
-mod rendering;
 
 #[derive(Debug)]
 pub enum InitError {

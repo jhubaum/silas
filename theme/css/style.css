@@ -221,3 +221,7 @@ code {
     background-color: var(--color-light-grey);
     border-radius: 4px;
 }
+
+.subscription-box {
+    margin: 5px;
+}

@@ -29,6 +29,8 @@ pub struct SerializedPost<'a> {
     pub last_edit: Option<chrono::naive::NaiveDate>,
     pub content: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub subtitle: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub summary: Option<&'a str>,
     pub title: String,
     pub heading: &'a str,
@@ -50,7 +52,7 @@ struct PostSummary<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     published: Option<chrono::naive::NaiveDate>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    summary: Option<&'a str>,
+    subtitle: Option<&'a str>,
 }
 
 #[derive(Serialize)]
@@ -68,7 +70,7 @@ impl<'a> From<&'a website::OrgFile> for PostSummary<'a> {
             heading: post.title(),
             id: post.id(),
             published: post.published,
-            summary: post.from_preamble("summary"),
+            subtitle: post.from_preamble("subtitle"),
         }
     }
 }
@@ -182,6 +184,7 @@ impl website::OrgFile {
                 published: self.published,
                 last_edit: self.last_edit,
                 content: rr.content,
+                subtitle: self.from_preamble("subtitle"),
                 summary: self.from_preamble("summary"),
                 title: self.title().to_string() + " | Johannes Huwald",
                 heading: self.title(),

@@ -106,6 +106,11 @@ impl Mode for ReleaseMode {
             "published post {:?} is missing a summary",
             post.path
         );
+        assert!(
+            post.from_preamble("subtitle").is_some(),
+            "published post {:?} is missing a summary",
+            post.path
+        );
         return true;
     }
 
@@ -131,8 +136,15 @@ impl Mode for PreviewMode {
     }
 
     fn include_post(&self, post: &OrgFile) -> bool {
-        if post.published.is_some() && post.from_preamble("summary").is_none() {
-            println!("published post {:?} is missing a summary", post.path);
+        if post.published.is_some() {
+            if post.from_preamble("summary").is_none() {
+                println!("published post {:?} is missing a summary",
+                         post.path);
+            }
+            if post.from_preamble("subtitle").is_none() {
+                println!("published post {:?} is missing a subtitle",
+                         post.path);
+            }
         }
         true
     }

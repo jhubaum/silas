@@ -203,13 +203,12 @@ impl HtmlHandler<HTMLExportError> for OrgHTMLHandler<'_> {
         };
 
         // Reset attributes after each element with content
-        if match element {
-            Element::Keyword(_) => false,
-            Element::Paragraph { .. } => false,
-            _ => true,
-        } {
-            self.attributes.clear();
-        }
+        match element {
+            // don't reset it on these elements
+            Element::Keyword(_) => {  },
+            Element::Paragraph { .. } => { },
+            _ => self.attributes.clear()
+        };
 
         Ok(())
     }

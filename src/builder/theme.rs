@@ -1,4 +1,5 @@
 use std::fs;
+use std::path::{Path, PathBuf};
 use std::fs::File;
 use std::io::{Error as IOError, Write};
 
@@ -22,6 +23,46 @@ fn render_date(
     out.write(&date.format("%A, %d. %B %Y").to_string())?;
     Ok(())
 }
+
+fn copy_folder_recursively<U: AsRef<Path>, V: AsRef<Path>+std::fmt::Display>(from: U, to: V) -> Result<(), std::io::Error> {
+    if fs::metadata(&to).is_ok() {
+        panic! {"copy_folder_recursively: target '{}' already exists", &to};
+    }
+    let mut stack = Vec::new();
+    stack.push(PathBuf::from(from.as_ref()));
+
+    let output_root = PathBuf::from(to.as_ref());
+    let input_root = PathBuf::from(from.as_ref()).components().count();
+
+    while let Some(working_path) = stack.pop() {
+        // Generate a relative path
+        let src: PathBuf = working_path.components().skip(input_root).collect();
+
+        // Create a destination if missing
+        let dest = if src.components().count() == 0 {
+            output_root.clone()
+        } else {
+            output_root.join(&src)
+        };
+        if fs::metadata(&dest).is_err() {
+            fs::create_dir_all(&dest)?;
+        }
+
+        for entry in fs::read_dir(working_path)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if let Some(filename) = path.file_name() {
+                let dest_path = dest.join(filename);
+                fs::copy(&path, &dest_path)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
 
 #[derive(Debug)]
 pub enum ThemeError {
@@ -81,19 +122,11 @@ impl<'a> Theme<'a> {
     }
 
     pub fn copy_files(&self, output_folder_path: &str) -> Result<(), IOError> {
-        let target = String::from(output_folder_path) + "/css";
+        copy_folder_recursively(self.theme_dir.to_string() + "/css",
+                                String::from(output_folder_path) + "/css")?;
 
-        if fs::metadata(&target).is_ok() {
-            panic! {"copy_folder: target '{}' already exists", &target};
-        }
-        fs::create_dir_all(&target)?;
-
-        let css_path = self.theme_dir.to_string() + "/css";
-        for entry in fs::read_dir(css_path)? {
-            let entry = entry?;
-            let file_name = target.to_string() + "/" + entry.file_name().to_str().unwrap();
-            fs::copy(entry.path(), file_name)?;
-        }
+        copy_folder_recursively(self.theme_dir.to_string() + "/js",
+                                String::from(output_folder_path) + "/js")?;
 
         fs::copy(
             self.theme_dir.to_string() + "/favicon.png",

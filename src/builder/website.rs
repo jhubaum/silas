@@ -157,7 +157,9 @@ impl Project {
         let mut posts = HashMap::new();
         let mut ids = HashSet::new();
         for path in find_all_project_files(path)?.iter() {
-            if path.file_name().unwrap() == "index.org" || path.extension().unwrap() != "org" {
+            if path.file_name().unwrap() == "index.org" ||
+                path.extension().is_none() ||
+                path.extension().unwrap() != "org" {
                 continue;
             }
             let org = OrgFile::load(path)?;

@@ -9,6 +9,18 @@
     font-family: "Helvetica Neue","Segoe UI",Helvetica,Arial,sans-serif;
 }
 
+figure * {
+    width: 100%;
+}
+
+figure {
+    font-style: italic;
+    font-size: smaller;
+    text-indent: 0;
+    border: thin var(--color-dark-grey) solid;
+    border-radius: 1px;
+}
+
 html {
     color: var(--color-black);
     background-color: var(--color-white);

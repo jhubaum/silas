@@ -38,6 +38,7 @@ enum ResolvedInternalLink {
 
 #[derive(Default)]
 pub struct Attributes {
+    pub caption: Option<String>,
     style: HashMap<String, String>,
     /// A flag to ignore attributes. This is used to ignore attributes in the preamble
     ignore_insert: bool,
@@ -72,7 +73,8 @@ impl Attributes {
                         attribute.value
                     ));
                 }
-            },
+            }
+            "CAPTION" => self.caption = Some(attribute.value.to_string()),
             _ => return Ok(false),
         }
         Ok(true)
@@ -221,6 +223,9 @@ impl<'a> OrgHTMLHandler<'a> {
         src: &str,
         alt: Option<&str>,
     ) -> Result<(), HTMLExportError> {
+        if self.attributes.caption.is_some() {
+            write!(w, "<figure>")?;
+        }
         if let Some(desc) = alt {
             write!(
                 w,
@@ -236,6 +241,10 @@ impl<'a> OrgHTMLHandler<'a> {
                 HtmlEscape(src),
                 self.attributes.get_inline_style()
             )?;
+        }
+
+        if let Some(caption) = &self.attributes.caption {
+            write!(w, "<figcaption>{}</figcaption></figure>", caption)?;
         }
         Ok(())
     }

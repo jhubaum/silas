@@ -1,5 +1,9 @@
+use std::collections::HashMap;
 use std::io::{Error as IOError, Write};
 use std::string::FromUtf8Error;
+
+use lazy_static::lazy_static;
+use regex::Regex;
 
 use super::website;
 use super::website::BlogElement;
@@ -33,11 +37,77 @@ enum ResolvedInternalLink {
 }
 
 #[derive(Default)]
+pub struct Attributes {
+    style: HashMap<String, String>,
+    /// A flag to ignore attributes. This is used to ignore attributes in the preamble
+    ignore_insert: bool,
+}
+
+impl Attributes {
+    pub fn insert(&mut self, attribute: &orgize::elements::Keyword) -> Result<bool, String> {
+        if self.ignore_insert {
+            return Ok(true);
+        }
+
+        match attribute.key.as_ref() {
+            "ATTR_HTML" => {
+                lazy_static! {
+                    static ref CSS_RE: Regex =
+                        Regex::new(":style (?P<attr>[[:alpha:]]+): (?P<value>[[:word:]%]+);?$")
+                            .unwrap();
+                }
+                if CSS_RE
+                    .captures(&attribute.value)
+                    .and_then(|cap| {
+                        self.style.insert(
+                            cap.name("attr").unwrap().as_str().to_string(),
+                            cap.name("value").unwrap().as_str().to_string(),
+                        );
+                        Some(())
+                    })
+                    .is_none()
+                {
+                    return Err(format!(
+                        "Unable to handle HTML attribute `{}`",
+                        attribute.value
+                    ));
+                }
+            },
+            _ => return Ok(false),
+        }
+        Ok(true)
+    }
+
+    pub fn get_inline_style(&self) -> String {
+        if self.style.len() == 0 {
+            String::from("")
+        } else {
+            // this can probably be implemented more efficiently. But it works for now. So I don't care.
+            format!(
+                " style=\"{}\"",
+                self.style
+                    .iter()
+                    .map(|tup| format!("{}: {};", tup.0, tup.1))
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            )
+        }
+    }
+
+    /// Create an attribute instance that ignores all inputs
+    pub fn none() -> Self {
+        let mut tmp = Self::default();
+        tmp.ignore_insert = true;
+        tmp
+    }
+}
+
+#[derive(Default)]
 pub struct OrgHTMLHandler<'a> {
     website: Option<&'a website::Website>,
     post: Option<&'a website::OrgFile>,
     fallback: DefaultHtmlHandler,
-    attributes: Vec<String>,
+    attributes: Attributes,
     base_url: String,
     image_deps: Vec<String>,
 }
@@ -58,7 +128,7 @@ impl<'a> OrgHTMLHandler<'a> {
             website: Some(website),
             post: Some(post),
             fallback: DefaultHtmlHandler::default(),
-            attributes: Vec::new(),
+            attributes: Attributes::none(),
             base_url: mode.base_url(),
             image_deps: Vec::new(),
         };
@@ -151,48 +221,43 @@ impl<'a> OrgHTMLHandler<'a> {
         src: &str,
         alt: Option<&str>,
     ) -> Result<(), HTMLExportError> {
-        let mut css = Vec::new();
-        for attr in &self.attributes {
-            if &attr[0..7] != ":style " {
-                panic!(
-                    "Unable to handle attribute {} for rendering image",
-                    self.attributes[0]
-                );
-            }
-            css.push(&attr[7..attr.len()]);
-        }
-        let css = if css.len() == 0 {
-            String::from(" ")
-        } else {
-            format!(" style=\"{}\"", css.join(" "))
-        };
-
         if let Some(desc) = alt {
             write!(
                 w,
                 "<img src=\"./{}\" alt=\"{}\"{}>",
                 HtmlEscape(src),
                 HtmlEscape(&desc),
-                css
+                self.attributes.get_inline_style()
             )?;
         } else {
-            write!(w, "<img src=\"./{}\"{}>", HtmlEscape(src), css)?;
+            write!(
+                w,
+                "<img src=\"./{}\"{}>",
+                HtmlEscape(src),
+                self.attributes.get_inline_style()
+            )?;
         }
         Ok(())
-    }
-
-    fn insert_attribute(&mut self, attribute: &orgize::elements::Keyword) {
-        match attribute.key.as_ref() {
-            "ATTR_HTML" => self.attributes.push(attribute.value.to_string()),
-            _ => {}
-        }
     }
 }
 
 impl HtmlHandler<HTMLExportError> for OrgHTMLHandler<'_> {
     fn start<W: Write>(&mut self, mut w: W, element: &Element) -> Result<(), HTMLExportError> {
         match element {
-            Element::Keyword(keyword) => self.insert_attribute(keyword),
+            Element::Keyword(keyword) => self.attributes.insert(keyword).map_or_else(
+                |err| {
+                    panic!("{:?}: {}", self.post.unwrap().path, err);
+                },
+                |handled| {
+                    if !handled {
+                        println!(
+                            "Warning: Unhandled attribute `{}` in {:?}",
+                            keyword.key,
+                            self.post.unwrap().path
+                        )
+                    }
+                },
+            ),
             Element::Link(link) => {
                 if self.write_link(&mut w, &link)? {
                     self.fallback.start(w, element)?;
@@ -205,9 +270,11 @@ impl HtmlHandler<HTMLExportError> for OrgHTMLHandler<'_> {
         // Reset attributes after each element with content
         match element {
             // don't reset it on these elements
-            Element::Keyword(_) => {  },
-            Element::Paragraph { .. } => { },
-            _ => self.attributes.clear()
+            Element::Keyword(_)
+            | Element::Paragraph { .. }
+            | Element::Section { .. }
+            | Element::Document { .. } => {}
+            _ => self.attributes = Attributes::default(),
         };
 
         Ok(())

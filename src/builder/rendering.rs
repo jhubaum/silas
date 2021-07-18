@@ -178,11 +178,13 @@ impl<'a> OrgHTMLHandler<'a> {
                     )?;
                 }
                 ResolvedInternalLink::Image(target) => {
-                    let desc = match &link.desc {
-                        None => None,
-                        Some(s) => Some(s.as_ref()),
+                    let alt = link.desc.as_ref().map(|s| s.as_ref());
+                    match &self.attributes.caption {
+                        None => {
+                            self.render_image(w, &target, alt, &self.attributes.get_inline_style())?
+                        }
+                        Some(c) => self.render_figure(w, &target, alt, &c)?,
                     };
-                    self.render_image(w, &target, desc)?;
                 }
             },
             lt => {
@@ -217,34 +219,37 @@ impl<'a> OrgHTMLHandler<'a> {
         }
     }
 
+    fn render_figure<W: Write>(
+        &self,
+        w: &mut W,
+        src: &str,
+        alt: Option<&str>,
+        caption: &str,
+    ) -> Result<(), HTMLExportError> {
+        write!(w, "<figure{}>", self.attributes.get_inline_style())?;
+        self.render_image(w, src, alt, " style=\"width: 100%\"")?;
+        write!(w, "<figcaption>{}</figcaption></figure>", caption)?;
+
+        Ok(())
+    }
+
     fn render_image<W: Write>(
         &self,
         w: &mut W,
         src: &str,
         alt: Option<&str>,
+        style: &str,
     ) -> Result<(), HTMLExportError> {
-        if self.attributes.caption.is_some() {
-            write!(w, "<figure>")?;
-        }
         if let Some(desc) = alt {
             write!(
                 w,
                 "<img src=\"./{}\" alt=\"{}\"{}>",
                 HtmlEscape(src),
                 HtmlEscape(&desc),
-                self.attributes.get_inline_style()
+                style
             )?;
         } else {
-            write!(
-                w,
-                "<img src=\"./{}\"{}>",
-                HtmlEscape(src),
-                self.attributes.get_inline_style()
-            )?;
-        }
-
-        if let Some(caption) = &self.attributes.caption {
-            write!(w, "<figcaption>{}</figcaption></figure>", caption)?;
+            write!(w, "<img src=\"./{}\"{}>", HtmlEscape(src), style)?;
         }
         Ok(())
     }
@@ -276,16 +281,6 @@ impl HtmlHandler<HTMLExportError> for OrgHTMLHandler<'_> {
             _ => self.fallback.start(w, element)?,
         };
 
-        // Reset attributes after each element with content
-        match element {
-            // don't reset it on these elements
-            Element::Keyword(_)
-            | Element::Paragraph { .. }
-            | Element::Section { .. }
-            | Element::Document { .. } => {}
-            _ => self.attributes = Attributes::default(),
-        };
-
         Ok(())
     }
 
@@ -294,6 +289,14 @@ impl HtmlHandler<HTMLExportError> for OrgHTMLHandler<'_> {
             Element::Document { .. } => {}
             _ => self.fallback.end(w, element)?,
         }
+
+        // Reset attributes after each element with content
+        match element {
+            // don't reset it on these elements
+            Element::Keyword(_) => {}
+            _ => self.attributes = Attributes::default(),
+        };
+
         Ok(())
     }
 }

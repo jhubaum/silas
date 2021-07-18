@@ -9,10 +9,6 @@
     font-family: "Helvetica Neue","Segoe UI",Helvetica,Arial,sans-serif;
 }
 
-figure * {
-    width: 100%;
-}
-
 figure {
     font-style: italic;
     font-size: smaller;

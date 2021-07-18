@@ -39,6 +39,9 @@ pub struct Website {
 
 pub struct Project {
     pub posts: HashMap<PathBuf, OrgFile>,
+    id: String,
+    title: String,
+    description: String,
 }
 
 #[derive(Clone)]
@@ -60,39 +63,38 @@ pub trait BlogElement {
 const IGNORED_FOLDERS: [&str; 1] = ["drafts"];
 const IGNORED_FILES: [&str; 2] = ["ideas.org", "index.org"];
 
+#[derive(Default)]
+struct ProjectBuilder {
+    posts: HashMap<PathBuf, OrgFile>,
+    projects: HashMap<String, Project>,
+}
+
 impl Website {
     pub fn load(path: &str) -> Result<Self, LoadError> {
         let path = Path::new(path);
 
-        // for now, there's only one project, the blog, that simply collects
-        // all posts in all folders of the website. In the longterm, rework
-        // this so that it gets a foldername as input and uses only it.
-        let mut projects = HashMap::new();
-        projects.insert(String::from("blog"), Project::load(path)?);
+        let mut project_builder = ProjectBuilder::default();
 
         let mut pages = HashMap::new();
         for file in path.read_dir()? {
             let path = file?.path();
             let filename = path.file_name().unwrap().to_str().unwrap();
 
-            if !path.is_file()
-                || path.extension().unwrap() != "org"
-                || IGNORED_FILES.contains(&filename)
+            if path.is_file()
+                && path.extension().map_or(false, |ext| ext == "org")
+                && !IGNORED_FILES.contains(&filename)
             {
-                continue;
-            }
-            let org = OrgFile::load(&path)?;
-            pages.insert(org.path.clone(), org);
-        }
-
-        let mut links = HashMap::new();
-        for proj in projects.values() {
-            for post in proj.posts.values() {
-                links.insert(post.path.as_path(), post);
+                let org = OrgFile::load(&path)?;
+                pages.insert(org.path.clone(), org);
+            } else if path.is_dir() && !IGNORED_FOLDERS.contains(&filename) {
+                project_builder.process_folder(&filename, &path)?;
             }
         }
 
-        Ok(Website { projects, pages })
+        Ok(Website {
+            projects: project_builder.projects(),
+            pages,
+        })
     }
 
     pub fn resolve_path(&self, path: &Path) -> Option<&OrgFile> {
@@ -119,27 +121,50 @@ impl Website {
     }
 }
 
+impl ProjectBuilder {
+    fn projects(mut self) -> HashMap<String, Project> {
+        let posts = self.posts;
+        self.projects.insert(
+            String::from("blog"),
+            Project {
+                posts,
+                id: String::from("blog"),
+                title: String::from("Blog"),
+                description: String::from("Stuff I've written"),
+            },
+        );
+        self.projects
+    }
+
+    fn process_folder(&mut self, name: &str, path: &Path) -> Result<(), LoadError> {
+        let mut index = path.to_path_buf();
+        index.push("index.org");
+        if index.exists() {
+            self.projects
+                .insert(name.to_string(), Project::load(name, path)?);
+        } else {
+            for file in find_all_project_files(path)?.iter() {
+                self.posts.insert(file.to_path_buf(), OrgFile::load(&file)?);
+            }
+        }
+        Ok(())
+    }
+}
+
 fn find_all_project_files(path: &Path) -> Result<Vec<PathBuf>, IOError> {
     let mut files = Vec::new();
     let mut folders = Vec::new();
+    folders.push(path.to_path_buf());
 
-    // load all folders in website directory
-    for path in path.read_dir()? {
-        let path = path?.path();
-        let filename = path.file_name().unwrap().to_str().unwrap();
-        if path.is_dir() && !IGNORED_FOLDERS.contains(&filename) {
-            folders.push(path);
-        }
-    }
-
-    // iterate over all folders and find files
     while folders.len() > 0 {
         let path = folders.pop().unwrap();
         for path in path.read_dir()? {
             let path = path?.path();
             if path.is_dir() {
                 folders.push(path);
-            } else {
+            } else if path.file_name().unwrap() != "index.org"
+                && path.extension().map_or(false, |ext| ext == "org")
+            {
                 files.push(path);
             }
         }
@@ -149,19 +174,10 @@ fn find_all_project_files(path: &Path) -> Result<Vec<PathBuf>, IOError> {
 }
 
 impl Project {
-    fn load(path: &Path) -> Result<Self, LoadError> {
-        // for now, there's only one project, the blog, that simply collects
-        // all posts in all folders of the website. In the longterm, rework
-        // this so that it gets a foldername as input and uses only it.
-
+    fn load(id: &str, path: &Path) -> Result<Self, LoadError> {
         let mut posts = HashMap::new();
         let mut ids = HashSet::new();
         for path in find_all_project_files(path)?.iter() {
-            if path.file_name().unwrap() == "index.org" ||
-                path.extension().is_none() ||
-                path.extension().unwrap() != "org" {
-                continue;
-            }
             let org = OrgFile::load(path)?;
             if ids.contains(org.id()) {
                 return Err(LoadError::DuplicateFileID(org.id().to_string()));
@@ -171,11 +187,20 @@ impl Project {
             posts.insert(org.path.clone(), org);
         }
 
-        Ok(Project { posts })
+        let mut index = path.to_path_buf();
+        index.push("index.org");
+        let index = OrgFile::load(&index)?;
+
+        Ok(Project {
+            id: id.to_string(),
+            posts,
+            title: index.title().to_string(),
+            description: index.description().to_string(),
+        })
     }
 
     pub fn id(&self) -> &str {
-        "blog"
+        &self.id
     }
 }
 
@@ -288,11 +313,11 @@ impl BlogElement for Project {
     }
 
     fn title(&self) -> &str {
-        "Blog"
+        &self.title
     }
 
     fn description(&self) -> &str {
-        "Stuff I have written"
+        &self.description
     }
 }
 
@@ -317,10 +342,16 @@ impl BlogElement for OrgFile {
             "Orgfile {:?} is missing a title",
             self.path
         );
-        return title.unwrap();
+        title.unwrap()
     }
 
     fn description(&self) -> &str {
-        self.from_preamble("summary").unwrap()
+        let summary = self.from_preamble("summary");
+        assert!(
+            summary.is_some(),
+            "Orgfile {:?} is missing a summary",
+            self.path
+        );
+        summary.unwrap()
     }
 }

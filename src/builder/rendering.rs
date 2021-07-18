@@ -206,7 +206,14 @@ impl<'a> OrgHTMLHandler<'a> {
         match link.split(".").last().unwrap() {
             "org" => {
                 let path = post.resolve_link(link);
-                let link = website.resolve_path(&path).unwrap();
+                let res = website.resolve_path(&path);
+                assert!(
+                    res.is_some(),
+                    "Unable to resolve link `{}` in {:?}",
+                    link,
+                    post.path
+                );
+                let link = res.unwrap();
                 Ok(ResolvedInternalLink::Post(
                     link.url(&website, self.base_url.clone()),
                 ))

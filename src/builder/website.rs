@@ -40,8 +40,7 @@ pub struct Website {
 pub struct Project {
     pub posts: HashMap<PathBuf, OrgFile>,
     id: String,
-    title: String,
-    description: String,
+    pub index: OrgFile,
 }
 
 #[derive(Clone)]
@@ -92,7 +91,7 @@ impl Website {
         }
 
         Ok(Website {
-            projects: project_builder.projects(),
+            projects: project_builder.projects("blog"),
             pages,
         })
     }
@@ -122,17 +121,13 @@ impl Website {
 }
 
 impl ProjectBuilder {
-    fn projects(mut self) -> HashMap<String, Project> {
-        let posts = self.posts;
-        self.projects.insert(
-            String::from("blog"),
-            Project {
-                posts,
-                id: String::from("blog"),
-                title: String::from("Blog"),
-                description: String::from("Stuff I've written"),
-            },
-        );
+    fn projects(mut self, default_project: &str) -> HashMap<String, Project> {
+        match self.projects.get_mut(default_project) {
+            None => panic!("ProjectBuilder: Default project doesn't exist"),
+            Some(p) => {
+                p.posts.extend(self.posts);
+            }
+        }
         self.projects
     }
 
@@ -194,13 +189,20 @@ impl Project {
         Ok(Project {
             id: id.to_string(),
             posts,
-            title: index.title().to_string(),
-            description: index.description().to_string(),
+            index,
         })
     }
 
     pub fn id(&self) -> &str {
         &self.id
+    }
+
+    pub fn include_description(&self) -> bool {
+        self.index.preamble.get("render_desc").map_or(true, |val| {
+            let res = val.parse::<bool>();
+            assert!(res.is_ok(), "Unable to convert `{}` to bool", val);
+            res.unwrap()
+        })
     }
 }
 
@@ -313,11 +315,11 @@ impl BlogElement for Project {
     }
 
     fn title(&self) -> &str {
-        &self.title
+        self.index.title()
     }
 
     fn description(&self) -> &str {
-        &self.description
+        self.index.description()
     }
 }
 
@@ -328,6 +330,10 @@ impl BlogElement for OrgFile {
         }
 
         for proj in website.projects.values() {
+            if proj.index.path == self.path {
+                return base + "/" + proj.id();
+            }
+
             if proj.posts.contains_key(&self.path) {
                 return base + "/" + proj.id() + "/" + self.id();
             }

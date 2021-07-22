@@ -1,7 +1,7 @@
 use std::fs;
-use std::path::{Path, PathBuf};
 use std::fs::File;
 use std::io::{Error as IOError, Write};
+use std::path::{Path, PathBuf};
 
 use chrono::naive::NaiveDate;
 use handlebars::{
@@ -24,7 +24,10 @@ fn render_date(
     Ok(())
 }
 
-fn copy_folder_recursively<U: AsRef<Path>, V: AsRef<Path>+std::fmt::Display>(from: U, to: V) -> Result<(), std::io::Error> {
+fn copy_folder_recursively<U: AsRef<Path>, V: AsRef<Path> + std::fmt::Display>(
+    from: U,
+    to: V,
+) -> Result<(), std::io::Error> {
     if fs::metadata(&to).is_ok() {
         panic! {"copy_folder_recursively: target '{}' already exists", &to};
     }
@@ -62,7 +65,6 @@ fn copy_folder_recursively<U: AsRef<Path>, V: AsRef<Path>+std::fmt::Display>(fro
 
     Ok(())
 }
-
 
 #[derive(Debug)]
 pub enum ThemeError {
@@ -122,11 +124,15 @@ impl<'a> Theme<'a> {
     }
 
     pub fn copy_files(&self, output_folder_path: &str) -> Result<(), IOError> {
-        copy_folder_recursively(self.theme_dir.to_string() + "/css",
-                                String::from(output_folder_path) + "/css")?;
+        copy_folder_recursively(
+            self.theme_dir.to_string() + "/css",
+            String::from(output_folder_path) + "/css",
+        )?;
 
-        copy_folder_recursively(self.theme_dir.to_string() + "/js",
-                                String::from(output_folder_path) + "/js")?;
+        copy_folder_recursively(
+            self.theme_dir.to_string() + "/js",
+            String::from(output_folder_path) + "/js",
+        )?;
 
         fs::copy(
             self.theme_dir.to_string() + "/favicon.png",

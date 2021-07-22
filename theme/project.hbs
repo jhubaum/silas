@@ -1,6 +1,8 @@
 {{#> layout }}
 <main>
   <h1>{{heading}}</h1>
+  {{#if render_description}}<h2>{{description}}</h2>{{/if}}
+ {{{text}}}
   <div class="catalogue">
     {{#each posts as |post|}}
     <a href="{{post.id}}" class="catalogue-item">

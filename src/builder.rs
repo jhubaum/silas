@@ -1,19 +1,18 @@
+use serde::ser::Serialize;
 use std::fs;
 use std::fs::File;
 use std::io::Error as IOError;
-use std::path::{PathBuf};
-use serde::ser::Serialize;
+use std::path::PathBuf;
 
-mod website;
-mod theme;
+mod rendering;
 mod rss;
 mod serialize;
-mod rendering;
+mod theme;
+mod website;
 
+use serialize::LayoutInfo;
 use theme::{Theme, ThemeError};
 use website::{BlogElement, LoadError, OrgFile, Website};
-use serialize::LayoutInfo;
-
 
 #[derive(Debug)]
 pub enum InitError {
@@ -138,12 +137,10 @@ impl Mode for PreviewMode {
     fn include_post(&self, post: &OrgFile) -> bool {
         if post.published.is_some() {
             if post.from_preamble("summary").is_none() {
-                println!("published post {:?} is missing a summary",
-                         post.path);
+                println!("published post {:?} is missing a summary", post.path);
             }
             if post.from_preamble("subtitle").is_none() {
-                println!("published post {:?} is missing a subtitle",
-                         post.path);
+                println!("published post {:?} is missing a subtitle", post.path);
             }
         }
         true
@@ -197,7 +194,7 @@ impl Builder<'_> {
         }
 
         for project in self.website.projects.values() {
-            let mut ser = project.serialize(&self.website, &mode, &layout);
+            let mut ser = project.serialize(&self.website, &mode, &layout)?;
             rss.start_project(project.id(), &ser);
             let file = self.prepare_file(project, output_path, &mut ser.folder_out)?;
             self.render_element(file, "project", &ser)?;

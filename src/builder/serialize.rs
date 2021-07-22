@@ -61,6 +61,8 @@ pub struct SerializedProjectIndex<'a> {
     pub title: String,
     pub heading: String,
     pub description: &'a str,
+    pub text: String,
+    render_description: bool,
     posts: Vec<PostSummary<'a>>,
 }
 
@@ -129,7 +131,7 @@ impl website::Project {
         website: &'a website::Website,
         mode: &T,
         layout: &'a LayoutInfo,
-    ) -> SerializedResult<SerializedProjectIndex<'a>> {
+    ) -> Result<SerializedResult<SerializedProjectIndex<'a>>, rendering::HTMLExportError> {
         let mut posts: Vec<PostSummary> = self
             .posts
             .values()
@@ -147,19 +149,22 @@ impl website::Project {
                 }
             }
         });
-        SerializedResult {
+        let index = self.index.serialize(website, mode, layout)?;
+        Ok(SerializedResult {
             elem: SerializedProjectIndex {
                 layout,
                 posts,
+                text: index.elem.content,
                 title: self.title().to_string() + " | Johannes Huwald",
                 heading: self.title().to_string(),
                 description: self.description(),
+                render_description: self.include_description(),
             },
-            image_deps: Vec::new(),
-            folder_in: String::new(),
-            folder_out: String::new(),
+            image_deps: index.image_deps,
+            folder_in: index.folder_in,
+            folder_out: index.folder_out,
             url: self.url(&website, mode.base_url()),
-        }
+        })
     }
 }
 

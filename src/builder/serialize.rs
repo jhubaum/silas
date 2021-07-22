@@ -101,8 +101,10 @@ impl LayoutInfo {
         }
 
         for proj in website.projects.values() {
-            let link = SerializedLink::from_blog_element(proj, website, mode);
-            header.push(link);
+            if mode.include_project(proj) {
+                let link = SerializedLink::from_blog_element(proj, website, mode);
+                header.push(link);
+            }
         }
 
         LayoutInfo {

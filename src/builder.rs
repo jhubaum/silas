@@ -12,7 +12,7 @@ mod website;
 
 use serialize::LayoutInfo;
 use theme::{Theme, ThemeError};
-use website::{BlogElement, LoadError, OrgFile, Website};
+use website::{BlogElement, LoadError, OrgFile, Project, Website};
 
 #[derive(Debug)]
 pub enum InitError {
@@ -75,6 +75,7 @@ pub trait Mode: Sized {
 
     fn include_page(&self, page: &OrgFile) -> bool;
     fn include_post(&self, post: &OrgFile) -> bool;
+    fn include_project(&self, project: &Project) -> bool;
     fn include_rss(&self) -> bool;
 }
 
@@ -113,6 +114,10 @@ impl Mode for ReleaseMode {
         return true;
     }
 
+    fn include_project(&self, project: &Project) -> bool {
+        project.published()
+    }
+
     fn include_rss(&self) -> bool {
         true
     }
@@ -143,6 +148,10 @@ impl Mode for PreviewMode {
                 println!("published post {:?} is missing a subtitle", post.path);
             }
         }
+        true
+    }
+
+    fn include_project(&self, _project: &Project) -> bool {
         true
     }
 
@@ -194,6 +203,10 @@ impl Builder<'_> {
         }
 
         for project in self.website.projects.values() {
+            if !mode.include_project(project) {
+                continue;
+            }
+
             let mut ser = project.serialize(&self.website, &mode, &layout)?;
             rss.start_project(project.id(), &ser);
             let file = self.prepare_file(project, output_path, &mut ser.folder_out)?;

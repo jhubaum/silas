@@ -198,11 +198,13 @@ impl Project {
     }
 
     pub fn include_description(&self) -> bool {
-        self.index.preamble.get("render_desc").map_or(true, |val| {
-            let res = val.parse::<bool>();
-            assert!(res.is_ok(), "Unable to convert `{}` to bool", val);
-            res.unwrap()
-        })
+        self.index
+            .parse_from_preamble::<bool>("render_desc")
+            .unwrap_or(false)
+    }
+
+    pub fn published(&self) -> bool {
+        self.index.published.is_some()
     }
 }
 
@@ -275,6 +277,26 @@ impl OrgFile {
 
     pub fn from_preamble<'a>(&'a self, key: &str) -> Option<&'a str> {
         return self.preamble.get(key).and_then(|s| Some(s.as_str()));
+    }
+
+    pub fn parse_from_preamble<T: std::str::FromStr + std::fmt::Debug>(
+        &self,
+        key: &str,
+    ) -> Option<T>
+    where
+        T::Err: std::fmt::Debug,
+    {
+        self.from_preamble(key).map(|val| {
+            let res = val.parse::<T>();
+            assert!(
+                res.is_ok(),
+                "Unable to convert `{}` to {} in preamble from {:?}",
+                val,
+                std::any::type_name::<T>(),
+                self.path
+            );
+            res.unwrap()
+        })
     }
 
     pub fn resolve_link(&self, link: &str) -> PathBuf {

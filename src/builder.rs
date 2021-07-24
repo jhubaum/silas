@@ -2,7 +2,7 @@ use serde::ser::Serialize;
 use std::fs;
 use std::fs::File;
 use std::io::Error as IOError;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 mod rendering;
 mod rss;
@@ -168,19 +168,51 @@ impl Builder<'_> {
         })
     }
 
+    fn clear_output_path(output_path: &str, overwrite: bool) -> Result<(), RenderError> {
+        let metadata = fs::metadata(output_path);
+        if metadata.is_ok() {
+            if !overwrite {
+                panic!("Target path '{}' is non-empty", output_path);
+            }
+
+            let metadata = metadata.unwrap();
+            if metadata.is_file() {
+                fs::remove_file(output_path)?;
+            } else {
+                fs::remove_dir_all(output_path)?;
+            }
+            println!("Cleared previous result");
+        }
+        Ok(())
+    }
+
+    pub fn generate_single_file<TMode: Mode>(
+        &self,
+        file_path: &str,
+        output_path: &str,
+        overwrite_existing: bool,
+    ) -> Result<(), RenderError> {
+        Self::clear_output_path(output_path, overwrite_existing)?;
+        let mode = TMode::create(output_path);
+        let layout = LayoutInfo::new(&self.website, &mode);
+
+        let post = self.website.resolve_path(Path::new(file_path));
+        assert!(post.is_some(), "File `{}` not found", file_path);
+
+        let ser = post.unwrap().serialize(&self.website, &mode, &layout)?;
+        let file = File::create(output_path)?;
+        self.render_element(file, "post", &ser)?;
+
+        Ok(())
+    }
+
     pub fn generate<TMode: Mode>(
         &self,
         output_path: &str,
         overwrite_existing: bool,
     ) -> Result<(), RenderError> {
-        if fs::metadata(output_path).is_ok() {
-            if !overwrite_existing {
-                panic!("Target folder '{}' is non-empty", output_path);
-            }
+        Self::clear_output_path(output_path, overwrite_existing)?;
 
-            println!("Cleared previous result");
-            fs::remove_dir_all(output_path)?;
-        }
         fs::create_dir(output_path)?;
         self.theme.copy_files(output_path)?;
 

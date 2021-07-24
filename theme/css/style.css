@@ -33,6 +33,10 @@ h1 {
     font-size: 2.1rem;
 }
 
+li p {
+    margin: 3px;
+}
+
 #date-published {
     font-style: italic;
     margin-bottom: 1.5rem;

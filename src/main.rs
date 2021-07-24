@@ -8,7 +8,14 @@ fn execute<T: Mode>(matches: &clap::ArgMatches) {
     };
 
     if matches.is_present("file") {
-        println!("Printing a single file is currently not supported");
+        match builder.generate_single_file::<T>(
+            matches.value_of("file").unwrap(),
+            matches.value_of("output").unwrap(),
+            true,
+        ) {
+            Err(err) => panic!("Unable to generate post: {:?}", err),
+            Ok(()) => println!("Generation successful!"),
+        }
     } else {
         match builder.generate::<T>(matches.value_of("output").unwrap(), true) {
             Err(err) => panic!("Unable to generate website: {:?}", err),
@@ -24,16 +31,16 @@ fn main() {
         .about("The SSG for my blog at jhuwald.com")
         .arg(
             clap::Arg::with_name("PATH")
-                .help("The path to the blog folder, or, if --file is set, to the file")
+                .help("The path to the blog folder")
                 .required(true),
         )
         .arg(
             clap::Arg::with_name("file")
                 .long("file")
                 .short("f")
-                .help("Generate the html output for a single org file")
+                .help("Only generate a post for this file")
                 .required(false)
-                .takes_value(false),
+                .takes_value(true),
         )
         .arg(
             clap::Arg::with_name("preview")

@@ -13,10 +13,20 @@ pub struct LayoutInfo {
     base_url: String,
 }
 
+#[derive(PartialOrd, PartialEq, Eq, Ord)]
+enum LinkType {
+    WebsiteIndex = 0,
+    Page = 1,
+    Project = 2,
+}
+
 #[derive(Serialize)]
 pub struct SerializedLink {
     target: String,
     title: String,
+    #[serde(skip_serializing)]
+    // this enum is only used to sort the list of links
+    link_type: LinkType,
 }
 
 #[derive(Serialize)]
@@ -83,10 +93,12 @@ impl SerializedLink {
         elem: &TElem,
         website: &website::Website,
         mode: &TMode,
+        link_type: LinkType,
     ) -> Self {
         SerializedLink {
             target: elem.url(website, mode.base_url()),
             title: elem.title().to_string(),
+            link_type,
         }
     }
 }
@@ -96,21 +108,36 @@ impl LayoutInfo {
         let mut header = Vec::new();
         for page in website.pages.values() {
             if mode.include_page(page) {
-                let link = SerializedLink::from_blog_element(page, website, mode);
+                let link = SerializedLink::from_blog_element(page, website, mode, LinkType::Page);
                 header.push(link);
             }
         }
 
         for proj in website.projects.values() {
             if mode.include_project(proj) {
-                let link = SerializedLink::from_blog_element(proj, website, mode);
+                let link =
+                    SerializedLink::from_blog_element(proj, website, mode, LinkType::Project);
                 header.push(link);
             }
         }
 
+        header.sort_by(|lhs, rhs| {
+            let cmp = lhs.link_type.cmp(&rhs.link_type);
+            if cmp == std::cmp::Ordering::Equal {
+                lhs.title.cmp(&rhs.title)
+            } else {
+                cmp
+            }
+        });
+
         LayoutInfo {
             header,
-            website_name: SerializedLink::from_blog_element(website, website, mode),
+            website_name: SerializedLink::from_blog_element(
+                website,
+                website,
+                mode,
+                LinkType::WebsiteIndex,
+            ),
             base_url: mode.base_url(),
         }
     }

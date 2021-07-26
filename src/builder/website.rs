@@ -77,6 +77,32 @@ pub enum PostType {
     Page,
 }
 
+/// The order in which posts are rendered in the project index
+#[derive(Debug)]
+pub enum PostOrder {
+    /// First, the The newest posts will be shown first. The default value
+    NewestFirst,
+    ById,
+}
+
+impl std::str::FromStr for PostOrder {
+    type Err = ();
+
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        match string {
+            "newest" => Ok(Self::NewestFirst),
+            "id" => Ok(Self::ById),
+            _ => Err(()),
+        }
+    }
+}
+
+impl Default for PostOrder {
+    fn default() -> Self {
+        PostOrder::NewestFirst
+    }
+}
+
 #[derive(Clone)]
 pub struct OrgFile {
     id: String,
@@ -323,7 +349,6 @@ impl OrgFile {
         return self.preamble.get(key).and_then(|s| Some(s.as_str()));
     }
 
-    #[allow(dead_code)]
     pub fn parse_from_preamble<T: std::str::FromStr + std::fmt::Debug>(
         &self,
         key: &str,

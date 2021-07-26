@@ -1,6 +1,6 @@
 use super::rendering;
 use super::website;
-use super::website::BlogElement;
+use super::website::{BlogElement, PostOrder};
 use super::Mode;
 use serde::Serialize;
 
@@ -128,6 +128,23 @@ impl website::Website {
     }
 }
 
+fn sort_by_published(lhs: &PostSummary, rhs: &PostSummary) -> std::cmp::Ordering {
+    match lhs.published {
+        None => std::cmp::Ordering::Less,
+        Some(lhs) => {
+            if rhs.published.is_none() {
+                std::cmp::Ordering::Greater
+            } else {
+                lhs.cmp(&rhs.published.unwrap()).reverse()
+            }
+        }
+    }
+}
+
+fn sort_by_id(lhs: &PostSummary, rhs: &PostSummary) -> std::cmp::Ordering {
+    lhs.id.cmp(rhs.id)
+}
+
 impl website::Project {
     pub fn serialize<'a, T: Mode>(
         &'a self,
@@ -142,16 +159,14 @@ impl website::Project {
             .map(|p| p.into())
             .collect();
 
-        posts.sort_by(|a, b| match a.published {
-            None => std::cmp::Ordering::Less,
-            Some(a) => {
-                if b.published.is_none() {
-                    std::cmp::Ordering::Greater
-                } else {
-                    a.cmp(&b.published.unwrap()).reverse()
-                }
-            }
-        });
+        match self
+            .index
+            .parse_from_preamble::<PostOrder>("order")
+            .unwrap_or_default()
+        {
+            PostOrder::NewestFirst => posts.sort_by(sort_by_published),
+            PostOrder::ById => posts.sort_by(sort_by_id),
+        };
         let index = self.index.serialize(website, mode, layout)?;
         Ok(SerializedResult {
             elem: SerializedProjectIndex {

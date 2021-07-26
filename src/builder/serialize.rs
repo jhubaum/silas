@@ -62,7 +62,8 @@ pub struct SerializedProjectIndex<'a> {
     pub heading: String,
     pub description: &'a str,
     pub text: String,
-    render_description: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    published: Option<chrono::naive::NaiveDate>,
     posts: Vec<PostSummary<'a>>,
 }
 
@@ -160,7 +161,7 @@ impl website::Project {
                 title: self.title().to_string() + " | Johannes Huwald",
                 heading: self.title().to_string(),
                 description: self.description(),
-                render_description: self.include_description(),
+                published: self.index.published
             },
             image_deps: index.image_deps,
             folder_in: index.folder_in,

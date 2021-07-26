@@ -223,12 +223,6 @@ impl Project {
         &self.id
     }
 
-    pub fn include_description(&self) -> bool {
-        self.index
-            .parse_from_preamble::<bool>("render_desc")
-            .unwrap_or(false)
-    }
-
     pub fn published(&self) -> bool {
         self.index.published.is_some()
     }
@@ -305,6 +299,7 @@ impl OrgFile {
         return self.preamble.get(key).and_then(|s| Some(s.as_str()));
     }
 
+    #[allow(dead_code)]
     pub fn parse_from_preamble<T: std::str::FromStr + std::fmt::Debug>(
         &self,
         key: &str,

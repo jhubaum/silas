@@ -208,6 +208,19 @@ blockquote cite::before {
     width: 2rem;
 }
 
+li.multi-post-item {
+    color: var(--color-black);
+    font-style: italic;
+}
+
+li.multi-post-item a {
+    color: var(--color-dark-grey);
+}
+
+li.multi-post-item a:hover {
+    color: var(--color-black);
+}
+
 main {
     border-bottom: 3px solid var(--color-light-grey);
     border-radius: 5px;

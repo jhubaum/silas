@@ -11,7 +11,7 @@ mod theme;
 mod website;
 
 use serialize::LayoutInfo;
-use theme::{Theme, ThemeError};
+use theme::{TemplateType, Theme, ThemeError};
 use website::{BlogElement, LoadError, OrgFile, Project, Website};
 
 #[derive(Debug)]
@@ -201,7 +201,7 @@ impl Builder<'_> {
 
         let ser = post.unwrap().serialize(&self.website, &mode, &layout)?;
         let file = File::create(output_path)?;
-        self.render_element(file, "post", &ser)?;
+        self.render_element(file, TemplateType::Post, &ser)?;
 
         Ok(())
     }
@@ -222,7 +222,7 @@ impl Builder<'_> {
 
         let mut ser = self.website.serialize(&mode, &layout)?;
         let file = self.prepare_file(&self.website, output_path, &mut ser.folder_out)?;
-        self.render_element(file, "page", &ser)?;
+        self.render_element(file, TemplateType::Page, &ser)?;
 
         for page in self.website.pages.values() {
             if !mode.include_page(&page) {
@@ -231,7 +231,7 @@ impl Builder<'_> {
             let mut ser = page.serialize(&self.website, &mode, &layout)?;
             rss.insert_file(&ser);
             let file = self.prepare_file(page, output_path, &mut ser.folder_out)?;
-            self.render_element(file, "page", &ser)?;
+            self.render_element(file, TemplateType::Page, &ser)?;
         }
 
         for project in self.website.projects.values() {
@@ -242,7 +242,7 @@ impl Builder<'_> {
             let mut ser = project.serialize(&self.website, &mode, &layout)?;
             rss.start_project(project.id(), &ser);
             let file = self.prepare_file(project, output_path, &mut ser.folder_out)?;
-            self.render_element(file, "project", &ser)?;
+            self.render_element(file, TemplateType::Project(project.project_type), &ser)?;
 
             for post in project.posts.values() {
                 if !mode.include_post(&post) {
@@ -251,7 +251,7 @@ impl Builder<'_> {
                 let mut ser = post.serialize(&self.website, &mode, &layout)?;
                 rss.insert_file(&ser);
                 let file = self.prepare_file(post, output_path, &mut ser.folder_out)?;
-                self.render_element(file, "post", &ser)?;
+                self.render_element(file, TemplateType::Post, &ser)?;
             }
             rss.finish_project();
         }
@@ -264,7 +264,7 @@ impl Builder<'_> {
     fn render_element<T: Serialize>(
         &self,
         mut file: File,
-        template: &str,
+        template: TemplateType,
         elem: &serialize::SerializedResult<T>,
     ) -> Result<(), RenderError> {
         for img in elem.image_deps.iter() {

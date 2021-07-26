@@ -9,6 +9,8 @@ use handlebars::{
 };
 use serde::ser::Serialize;
 
+use super::website::ProjectType;
+
 fn render_date(
     h: &Helper,
     _: &Handlebars,
@@ -107,10 +109,29 @@ pub struct Theme<'a> {
     theme_dir: &'a str,
 }
 
+pub enum TemplateType {
+    Post,
+    Project(ProjectType),
+    Page,
+}
+
+impl TemplateType {
+    fn to_template_name(&self) -> &'static str {
+        match self {
+            Self::Post => "post",
+            Self::Project(pt) => match pt {
+                ProjectType::Catalogue => "projects/catalogue",
+                ProjectType::MultiPart => "projects/multi",
+            },
+            Self::Page => "page",
+        }
+    }
+}
+
 impl<'a> Theme<'a> {
     pub fn load(path: &'a str) -> Result<Self, ThemeError> {
         let mut templates = Handlebars::new();
-        for template in ["layout", "page", "post", "project"].iter() {
+        for template in ["layout", "page", "post", "projects/catalogue", "projects/multi"].iter() {
             let filename = format!("{}/{}.hbs", path, template);
             templates.register_template_file(template, filename)?;
         }
@@ -144,10 +165,14 @@ impl<'a> Theme<'a> {
     pub fn render<TData: Serialize>(
         &self,
         file: &mut File,
-        template: &str,
+        template: TemplateType,
         data: &TData,
     ) -> Result<(), RenderError> {
-        write!(file, "{}", self.templates.render(template, data)?)?;
+        write!(
+            file,
+            "{}",
+            self.templates.render(template.to_template_name(), data)?
+        )?;
         Ok(())
     }
 }

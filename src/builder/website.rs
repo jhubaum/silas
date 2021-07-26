@@ -41,6 +41,28 @@ pub struct Project {
     pub posts: HashMap<PathBuf, OrgFile>,
     id: String,
     pub index: OrgFile,
+    pub project_type: ProjectType,
+}
+
+#[derive(Copy, Clone)]
+pub enum ProjectType {
+    /// A list of posts (like I'm using for my general blog). The default value
+    Catalogue,
+    /// Interpret the index file as a normal post but append an ordered list of all posts from the project
+    MultiPart,
+}
+
+impl ProjectType {
+    fn from_str(string: Option<&str>) -> Result<Self, ()> {
+        if let Some(string) = string {
+            return match string {
+                "catalogue" => Ok(Self::Catalogue),
+                "multi" => Ok(Self::MultiPart),
+                _ => Err(()),
+            };
+        }
+        Ok(Self::Catalogue)
+    }
 }
 
 #[derive(Clone)]
@@ -186,8 +208,12 @@ impl Project {
         index.push("index.org");
         let index = OrgFile::load(&index)?;
 
+        let project_type = ProjectType::from_str(index.from_preamble("type"));
+        assert!(project_type.is_ok(), "Unknown project type in {:?}", path);
+
         Ok(Project {
             id: id.to_string(),
+            project_type: project_type.unwrap(),
             posts,
             index,
         })

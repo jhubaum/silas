@@ -1,0 +1,29 @@
+{{#> layout }}
+<main>
+  <h1>{{heading}}</h1>
+  {{#if render_description}}<h2>{{description}}</h2>{{/if}}
+ {{{text}}}
+  <div class="catalogue">
+    {{#each posts as |post|}}
+    <a href="{{post.id}}" class="catalogue-item">
+    <div>
+      <h2 class="catalogue-title">{{post.heading}}</h2>
+      {{#if post.published}}
+      <time class="catalogue-date" datetime="{{post.published}}">{{date post.published}}</time>
+      {{else}}
+      <span class="catalogue-date">DRAFT</span>
+      {{/if}}
+      <div class="catalogue-line"></div>
+      <p class="catalogue-summary">
+         {{#if post.subtitle}}{{post.subtitle}}{{/if}}
+      </p>
+    </div>
+    </a>
+    {{/each}}
+  </div>
+</main>
+<footer>
+  {{#if last-edit}}<span>Last edited: {{date last-edit}}{{/if}}
+  <p><a class="top" href="#">Top</a></p>
+</footer>
+{{/layout}}

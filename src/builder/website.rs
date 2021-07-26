@@ -44,7 +44,7 @@ pub struct Project {
     pub project_type: ProjectType,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum ProjectType {
     /// A list of posts (like I'm using for my general blog). The default value
     Catalogue,
@@ -65,6 +65,18 @@ impl ProjectType {
     }
 }
 
+#[derive(Copy, Clone, PartialEq)]
+pub enum PostType {
+    /// A normal post, requiring a summary and subtitle if published
+    Normal,
+    /// A mini post. All posts in a multi part project are counted as Mini posts
+    Mini,
+    /// The type used for project indices
+    Index,
+    /// The type for all pages (and the website index)
+    Page,
+}
+
 #[derive(Clone)]
 pub struct OrgFile {
     id: String,
@@ -73,6 +85,8 @@ pub struct OrgFile {
     pub contents: String,
     pub published: Option<chrono::naive::NaiveDate>,
     pub last_edit: Option<chrono::naive::NaiveDate>,
+    // TODO: Add an intermediate struct Post that holds PostType instead
+    pub post_type: PostType,
 }
 
 pub trait BlogElement {
@@ -105,7 +119,7 @@ impl Website {
                 && path.extension().map_or(false, |ext| ext == "org")
                 && !IGNORED_FILES.contains(&filename)
             {
-                let org = OrgFile::load(&path)?;
+                let org = OrgFile::load(&path, PostType::Page)?;
                 pages.insert(org.path.clone(), org);
             } else if path.is_dir() && !IGNORED_FOLDERS.contains(&filename) {
                 project_builder.process_folder(&filename, &path)?;
@@ -161,7 +175,9 @@ impl ProjectBuilder {
                 .insert(name.to_string(), Project::load(name, path)?);
         } else {
             for file in find_all_project_files(path)?.iter() {
-                self.posts.insert(file.to_path_buf(), OrgFile::load(&file)?);
+                // TODO: Setting the post type here doesn't work if the default project is a multi part project
+                self.posts
+                    .insert(file.to_path_buf(), OrgFile::load(&file, PostType::Normal)?);
             }
         }
         Ok(())
@@ -192,10 +208,24 @@ fn find_all_project_files(path: &Path) -> Result<Vec<PathBuf>, IOError> {
 
 impl Project {
     fn load(id: &str, path: &Path) -> Result<Self, LoadError> {
+        let mut index = path.to_path_buf();
+        index.push("index.org");
+        let index = OrgFile::load(&index, PostType::Index)?;
+
+        let project_type = ProjectType::from_str(index.from_preamble("type"));
+        assert!(project_type.is_ok(), "Unknown project type in {:?}", path);
+        let project_type = project_type.unwrap();
+
+        let post_type = if project_type == ProjectType::MultiPart {
+            PostType::Mini
+        } else {
+            PostType::Normal
+        };
+
         let mut posts = HashMap::new();
         let mut ids = HashSet::new();
         for path in find_all_project_files(path)?.iter() {
-            let org = OrgFile::load(path)?;
+            let org = OrgFile::load(path, post_type)?;
             if ids.contains(org.id()) {
                 return Err(LoadError::DuplicateFileID(org.id().to_string()));
             }
@@ -204,16 +234,9 @@ impl Project {
             posts.insert(org.path.clone(), org);
         }
 
-        let mut index = path.to_path_buf();
-        index.push("index.org");
-        let index = OrgFile::load(&index)?;
-
-        let project_type = ProjectType::from_str(index.from_preamble("type"));
-        assert!(project_type.is_ok(), "Unknown project type in {:?}", path);
-
         Ok(Project {
             id: id.to_string(),
-            project_type: project_type.unwrap(),
+            project_type,
             posts,
             index,
         })
@@ -229,7 +252,7 @@ impl Project {
 }
 
 impl OrgFile {
-    fn load(path: &PathBuf) -> Result<Self, LoadError> {
+    fn load(path: &PathBuf, post_type: PostType) -> Result<Self, LoadError> {
         let ext = path.extension();
         if ext.is_none() || ext.unwrap() != "org" {
             panic!(
@@ -258,6 +281,7 @@ impl OrgFile {
             preamble,
             published,
             last_edit,
+            post_type,
         })
     }
 

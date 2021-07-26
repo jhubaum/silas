@@ -161,7 +161,7 @@ impl website::Project {
                 title: self.title().to_string() + " | Johannes Huwald",
                 heading: self.title().to_string(),
                 description: self.description(),
-                published: self.index.published
+                published: self.index.published,
             },
             image_deps: index.image_deps,
             folder_in: index.folder_in,

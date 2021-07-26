@@ -131,7 +131,15 @@ impl TemplateType {
 impl<'a> Theme<'a> {
     pub fn load(path: &'a str) -> Result<Self, ThemeError> {
         let mut templates = Handlebars::new();
-        for template in ["layout", "page", "post", "projects/catalogue", "projects/multi"].iter() {
+        for template in [
+            "layout",
+            "page",
+            "post",
+            "projects/catalogue",
+            "projects/multi",
+        ]
+        .iter()
+        {
             let filename = format!("{}/{}.hbs", path, template);
             templates.register_template_file(template, filename)?;
         }

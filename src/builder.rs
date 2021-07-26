@@ -102,12 +102,12 @@ impl Mode for ReleaseMode {
             return false;
         }
         assert!(
-            post.from_preamble("summary").is_some(),
+            post.from_preamble("summary").is_some() || post.post_type == website::PostType::Mini,
             "published post {:?} is missing a summary",
             post.path
         );
         assert!(
-            post.from_preamble("subtitle").is_some(),
+            post.from_preamble("subtitle").is_some() || post.post_type == website::PostType::Mini,
             "published post {:?} is missing a summary",
             post.path
         );
@@ -141,10 +141,12 @@ impl Mode for PreviewMode {
 
     fn include_post(&self, post: &OrgFile) -> bool {
         if post.published.is_some() {
-            if post.from_preamble("summary").is_none() {
+            if post.from_preamble("summary").is_none() && post.post_type != website::PostType::Mini
+            {
                 println!("published post {:?} is missing a summary", post.path);
             }
-            if post.from_preamble("subtitle").is_none() {
+            if post.from_preamble("subtitle").is_none() && post.post_type != website::PostType::Mini
+            {
                 println!("published post {:?} is missing a subtitle", post.path);
             }
         }

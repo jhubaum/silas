@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Error as IOError;
 
-use rss::{Channel, ChannelBuilder, Item, ItemBuilder};
+use rss::{Channel, ChannelBuilder, Guid, Item, ItemBuilder};
 
 pub struct RSSBuilder<'a> {
     current_project: Option<&'a str>,
@@ -38,10 +38,14 @@ type Post<'a> = SerializedResult<SerializedPost<'a>>;
 impl<'a> From<&Post<'a>> for Item {
     fn from(post: &Post) -> Self {
         let mut builder = ItemBuilder::default();
+        let mut guid = Guid::default();
+        guid.set_value(post.url.to_string());
+        guid.set_permalink(true);
         builder
             .title(post.elem.heading.to_string())
             .link(post.url.to_string())
             .author(String::from("Johannes Huwald <hey@jhuwald.com>"))
+            .guid(guid)
             .content(post.elem.content.to_string());
 
         if let Some(date) = post.elem.published {

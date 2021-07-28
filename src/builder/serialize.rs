@@ -1,4 +1,5 @@
 use super::rendering;
+use super::rendering::OrgExtractGenerator;
 use super::website;
 use super::website::{BlogElement, PostOrder};
 use super::Mode;
@@ -41,7 +42,7 @@ pub struct SerializedPost<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subtitle: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub summary: Option<&'a str>,
+    pub summary: Option<String>,
     pub title: String,
     pub heading: &'a str,
     pub id: &'a str,
@@ -224,6 +225,13 @@ impl website::OrgFile {
         let mut folder_in = self.path.clone();
         folder_in.pop();
         let folder_in = folder_in.to_str().unwrap().to_string();
+
+        let mut summary = self.parse_from_preamble::<String>("summary");
+
+        if summary.is_none() && self.post_type == website::PostType::Mini {
+            summary = Some(OrgExtractGenerator::generate(self)?);
+        }
+
         Ok(SerializedResult {
             image_deps: rr.image_deps,
             folder_in,
@@ -231,11 +239,11 @@ impl website::OrgFile {
             url: self.url(&website, mode.base_url()),
             elem: SerializedPost {
                 layout,
+                summary,
                 published: self.published,
                 last_edit: self.last_edit,
                 content: rr.content,
                 subtitle: self.from_preamble("subtitle"),
-                summary: self.from_preamble("summary"),
                 title: self.title().to_string() + " | Johannes Huwald",
                 heading: self.title(),
                 id: self.id(),

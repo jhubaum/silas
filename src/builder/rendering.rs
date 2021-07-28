@@ -308,6 +308,85 @@ impl HtmlHandler<HTMLExportError> for OrgHTMLHandler<'_> {
     }
 }
 
+#[derive(Default)]
+pub struct OrgExtractGenerator {
+    written_length: usize,
+    finished_writing: bool,
+}
+
+impl OrgExtractGenerator {
+    const MAX_LENGTH: usize = 200;
+
+    pub fn generate(file: &website::OrgFile) -> Result<String, HTMLExportError> {
+        let parser = Org::parse(&file.contents);
+        let mut handler = OrgExtractGenerator::default();
+        let mut writer = Vec::new();
+        parser.write_html_custom(&mut writer, &mut handler)?;
+        if handler.finished_writing {
+            write!(writer, "...")?;
+        }
+
+        Ok(String::from_utf8(writer)?)
+    }
+
+    fn write<W: Write>(&mut self, mut w: W, text: &str) -> Result<(), HTMLExportError> {
+        if self.finished_writing {
+            return Ok(());
+        }
+        if self.written_length + text.len() <= Self::MAX_LENGTH {
+            write!(w, "{}", text)?;
+            return Ok(());
+        }
+        // found last element to be written. Split it at a fitting word
+        let index = text.find(char::is_whitespace);
+        if index.is_none() {
+            // text is only one word, ignore it completely
+            self.finished_writing = true;
+            return Ok(());
+        }
+        let mut index = index.unwrap();
+        loop {
+            let next = text[index..].find(char::is_whitespace);
+            match next {
+                None => {
+                    break;
+                }
+                Some(d) => {
+                    if self.written_length + index + d > Self::MAX_LENGTH {
+                        break;
+                    }
+                    index += d + 1;
+                }
+            };
+        }
+
+        self.finished_writing = true;
+        write!(w, "{}", &text[..index - 1])?;
+        Ok(())
+    }
+}
+
+impl HtmlHandler<HTMLExportError> for OrgExtractGenerator {
+    fn start<W: Write>(&mut self, w: W, element: &Element) -> Result<(), HTMLExportError> {
+        match element {
+            Element::Link(link) => {
+                if let Some(desc) = &link.desc {
+                    self.write(w, desc)?;
+                }
+            }
+            Element::Text { value } => {
+                self.write(w, value)?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn end<W: Write>(&mut self, _w: W, _element: &Element) -> Result<(), HTMLExportError> {
+        Ok(())
+    }
+}
+
 impl website::OrgFile {
     pub fn render_html<T: Mode>(
         &self,

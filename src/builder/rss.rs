@@ -49,7 +49,7 @@ impl<'a> From<&Post<'a>> for Item {
             builder.pub_date(date.to_rfc2822());
         }
 
-        if let Some(desc) = post.elem.summary {
+        if let Some(desc) = &post.elem.summary {
             builder.description(desc.to_string());
         };
         builder.build().unwrap()

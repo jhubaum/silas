@@ -128,6 +128,10 @@ a:hover {
     color: var(--color-link-focus);
 }
 
+div.fndef p {
+    display: inline;
+}
+
 footer {
     padding: 0.5rem 0;
 }

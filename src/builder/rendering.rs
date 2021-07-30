@@ -112,6 +112,7 @@ pub struct OrgHTMLHandler<'a> {
     attributes: Attributes,
     base_url: String,
     image_deps: Vec<String>,
+    first_footnote: bool
 }
 
 pub struct RenderResult {
@@ -133,6 +134,7 @@ impl<'a> OrgHTMLHandler<'a> {
             attributes: Attributes::none(),
             base_url: mode.base_url(),
             image_deps: Vec::new(),
+            first_footnote: true,
         };
         let mut writer = Vec::new();
         parser.write_html_custom(&mut writer, &mut handler)?;
@@ -283,7 +285,17 @@ impl HtmlHandler<HTMLExportError> for OrgHTMLHandler<'_> {
                 if self.write_link(&mut w, &link)? {
                     self.fallback.start(w, element)?;
                 }
-            }
+            },
+            Element::FnRef(fnref) => {
+                write!(w, "<sup id=\"ref{0}\"><a href=\"#fn{0}\">{0}</a></sup>", fnref.label)?;
+            },
+            Element::FnDef(fndef) => {
+                if self.first_footnote {
+                    self.first_footnote = false;
+                    write!(w, "<p>---</p>")?;
+                }
+                write!(w, "<div id=\"fn{0}\" class=\"fndef\"><a href=\"#ref{0}\">{0}</a>: ", fndef.label)?;
+            },
             Element::Document { .. } => {}
             _ => self.fallback.start(w, element)?,
         };
@@ -291,8 +303,11 @@ impl HtmlHandler<HTMLExportError> for OrgHTMLHandler<'_> {
         Ok(())
     }
 
-    fn end<W: Write>(&mut self, w: W, element: &Element) -> Result<(), HTMLExportError> {
+    fn end<W: Write>(&mut self, mut w: W, element: &Element) -> Result<(), HTMLExportError> {
         match element {
+            Element::FnDef(_) => {
+                write!(w, "</div>")?
+            },
             Element::Document { .. } => {}
             _ => self.fallback.end(w, element)?,
         }

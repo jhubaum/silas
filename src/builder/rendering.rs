@@ -330,7 +330,7 @@ pub struct OrgExtractGenerator {
 }
 
 impl OrgExtractGenerator {
-    const MAX_LENGTH: usize = 200;
+    const MAX_LENGTH: usize = 500;
 
     pub fn generate(file: &website::OrgFile) -> Result<String, HTMLExportError> {
         let parser = Org::parse(&file.contents);

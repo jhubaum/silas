@@ -150,9 +150,7 @@ impl website::Website {
         mode: &T,
         layout: &'a LayoutInfo,
     ) -> Result<SerializedResult<SerializedPost<'a>>, rendering::HTMLExportError> {
-        self.page_by_id("about")
-            .unwrap()
-            .serialize(self, mode, layout)
+        self.index.serialize(self, mode, layout)
     }
 }
 

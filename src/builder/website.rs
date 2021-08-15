@@ -35,6 +35,7 @@ impl From<chrono::ParseError> for LoadError {
 pub struct Website {
     pub projects: HashMap<String, Project>,
     pub pages: HashMap<PathBuf, OrgFile>,
+    pub index: OrgFile,
 }
 
 pub struct Project {
@@ -121,9 +122,6 @@ pub trait BlogElement {
     fn description(&self) -> &str;
 }
 
-const IGNORED_FOLDERS: [&str; 1] = ["drafts"];
-const IGNORED_FILES: [&str; 2] = ["ideas.org", "index.org"];
-
 #[derive(Default)]
 struct ProjectBuilder {
     posts: HashMap<PathBuf, OrgFile>,
@@ -137,17 +135,19 @@ impl Website {
         let mut project_builder = ProjectBuilder::default();
 
         let mut pages = HashMap::new();
+        let mut index = None;
         for file in path.read_dir()? {
             let path = file?.path();
             let filename = path.file_name().unwrap().to_str().unwrap();
 
-            if path.is_file()
-                && path.extension().map_or(false, |ext| ext == "org")
-                && !IGNORED_FILES.contains(&filename)
-            {
+            if OrgFile::is_org_file(&path) {
                 let org = OrgFile::load(&path, PostType::Page)?;
-                pages.insert(org.path.clone(), org);
-            } else if path.is_dir() && !IGNORED_FOLDERS.contains(&filename) {
+                if path.file_name().unwrap() == "index.org" {
+                    index = Some(org);
+                } else {
+                    pages.insert(org.path.clone(), org);
+                }
+            } else if path.is_dir() {
                 project_builder.process_folder(&filename, &path)?;
             }
         }
@@ -155,6 +155,7 @@ impl Website {
         Ok(Website {
             projects: project_builder.projects("blog"),
             pages,
+            index: index.expect("Found no website index (index.org in root directiory)"),
         })
     }
 
@@ -169,15 +170,6 @@ impl Website {
             }
         }
 
-        None
-    }
-
-    pub fn page_by_id(&self, id: &str) -> Option<&OrgFile> {
-        for page in self.pages.values() {
-            if page.id() == id {
-                return Some(&page);
-            }
-        }
         None
     }
 }
@@ -201,7 +193,9 @@ impl ProjectBuilder {
                 .insert(name.to_string(), Project::load(name, path)?);
         } else {
             for file in find_all_project_files(path)?.iter() {
-                // TODO: Setting the post type here doesn't work if the default project is a multi part project
+                // TODO:
+                // Setting the post type here doesn't work if the default project is a multi part project
+                // In which the type should be PostType::Mini
                 self.posts
                     .insert(file.to_path_buf(), OrgFile::load(&file, PostType::Normal)?);
             }
@@ -221,9 +215,7 @@ fn find_all_project_files(path: &Path) -> Result<Vec<PathBuf>, IOError> {
             let path = path?.path();
             if path.is_dir() {
                 folders.push(path);
-            } else if path.file_name().unwrap() != "index.org"
-                && path.extension().map_or(false, |ext| ext == "org")
-            {
+            } else if OrgFile::is_org_file(&path) && path.file_name().unwrap() != "index.org" {
                 files.push(path);
             }
         }
@@ -278,14 +270,16 @@ impl Project {
 }
 
 impl OrgFile {
+    fn is_org_file(path: &Path) -> bool {
+        path.is_file() && path.extension().map_or(false, |ext| ext == "org")
+    }
+
     fn load(path: &PathBuf, post_type: PostType) -> Result<Self, LoadError> {
-        let ext = path.extension();
-        if ext.is_none() || ext.unwrap() != "org" {
-            panic!(
-                "Trying to load {:?} as orgfile. This shouldn't happen",
-                path
-            );
-        }
+        assert!(
+            OrgFile::is_org_file(path),
+            "Trying to load {:?} as orgfile. This shouldn't happen",
+            path
+        );
 
         let contents = String::from_utf8(fs::read(path)?)?;
         let parser = Org::parse(&contents);
@@ -417,6 +411,10 @@ impl BlogElement for Project {
 
 impl BlogElement for OrgFile {
     fn url(&self, website: &Website, base: String) -> String {
+        if website.index.path == self.path {
+            return base;
+        }
+
         if website.pages.contains_key(&self.path) {
             return base + "/" + self.id();
         }

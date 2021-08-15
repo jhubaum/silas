@@ -225,6 +225,7 @@ impl Builder<'_> {
         let mut ser = self.website.serialize(&mode, &layout)?;
         let file = self.prepare_file(&self.website, output_path, &mut ser.folder_out)?;
         self.render_element(file, TemplateType::Page, &ser)?;
+        rss.insert_file(&ser);
 
         for page in self.website.pages.values() {
             if !mode.include_page(&page) {
@@ -270,6 +271,14 @@ impl Builder<'_> {
         elem: &serialize::SerializedResult<T>,
     ) -> Result<(), RenderError> {
         for img in elem.image_deps.iter() {
+            let mut path = PathBuf::from(&elem.folder_in);
+            path.push(img);
+            assert!(
+                path.is_file(),
+                "Image dependency {:?} for {} doesn't exist",
+                path,
+                elem.url
+            );
             fs::copy(
                 elem.folder_in.clone() + "/" + img,
                 elem.folder_out.clone() + "/" + img,

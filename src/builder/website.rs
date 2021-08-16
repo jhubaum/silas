@@ -6,29 +6,70 @@ use std::string::FromUtf8Error;
 use orgize::{Element, Event, Org};
 use std::fs;
 
+use super::Mode;
+
 #[derive(Debug)]
-pub enum LoadError {
+pub enum WebsiteError {
     IO(IOError),
-    DuplicateFileID(String),
-    UTF8(FromUtf8Error),
-    Date(chrono::ParseError),
+    Page(PathBuf, OrgFileError),
+    Project(String, ProjectError),
+    DefaultProjectDoesNotExist,
 }
 
-impl From<IOError> for LoadError {
+#[derive(Debug)]
+pub enum ProjectError {
+    IO(IOError),
+    DuplicateFileID(String),
+    OrgFile(String, OrgFileError),
+    UnknownProjectType,
+}
+
+#[derive(Debug)]
+pub enum OrgFileError {
+    IO(IOError),
+    UTF8(FromUtf8Error),
+    Date(chrono::ParseError),
+    MissingRequiredField(&'static str),
+}
+
+impl From<IOError> for WebsiteError {
     fn from(err: IOError) -> Self {
         Self::IO(err)
     }
 }
 
-impl From<FromUtf8Error> for LoadError {
+impl From<IOError> for ProjectError {
+    fn from(err: IOError) -> Self {
+        Self::IO(err)
+    }
+}
+
+impl From<IOError> for OrgFileError {
+    fn from(err: IOError) -> Self {
+        Self::IO(err)
+    }
+}
+
+impl From<FromUtf8Error> for OrgFileError {
     fn from(err: FromUtf8Error) -> Self {
         Self::UTF8(err)
     }
 }
 
-impl From<chrono::ParseError> for LoadError {
+impl From<chrono::ParseError> for OrgFileError {
     fn from(err: chrono::ParseError) -> Self {
         Self::Date(err)
+    }
+}
+
+impl OrgFileError {
+    pub fn to_project_error<T>(res: Result<T, Self>, path: &Path) -> Result<T, ProjectError> {
+        res.or_else(|err| {
+            Err(ProjectError::OrgFile(
+                path.to_str().unwrap().to_string(),
+                err,
+            ))
+        })
     }
 }
 
@@ -129,7 +170,7 @@ struct ProjectBuilder {
 }
 
 impl Website {
-    pub fn load(path: &str) -> Result<Self, LoadError> {
+    pub fn load<TMode: Mode>(path: &str) -> Result<Self, WebsiteError> {
         let path = Path::new(path);
 
         let mut project_builder = ProjectBuilder::default();
@@ -141,19 +182,20 @@ impl Website {
             let filename = path.file_name().unwrap().to_str().unwrap();
 
             if OrgFile::is_org_file(&path) {
-                let org = OrgFile::load(&path, PostType::Page)?;
+                let org = OrgFile::load(&path, PostType::Page)
+                    .or_else(|err| Err(WebsiteError::Page((&path).into(), err)))?;
                 if path.file_name().unwrap() == "index.org" {
                     index = Some(org);
                 } else {
                     pages.insert(org.path.clone(), org);
                 }
             } else if path.is_dir() {
-                project_builder.process_folder(&filename, &path)?;
+                project_builder.process_folder::<TMode>(&filename, &path)?;
             }
         }
 
         Ok(Website {
-            projects: project_builder.projects("blog"),
+            projects: project_builder.projects("blog")?,
             pages,
             index: index.expect("Found no website index (index.org in root directiory)"),
         })
@@ -175,29 +217,38 @@ impl Website {
 }
 
 impl ProjectBuilder {
-    fn projects(mut self, default_project: &str) -> HashMap<String, Project> {
+    fn projects(mut self, default_project: &str) -> Result<HashMap<String, Project>, WebsiteError> {
         match self.projects.get_mut(default_project) {
-            None => panic!("ProjectBuilder: Default project doesn't exist"),
+            None => Err(WebsiteError::DefaultProjectDoesNotExist),
             Some(p) => {
                 p.posts.extend(self.posts);
+                Ok(self.projects)
             }
         }
-        self.projects
     }
 
-    fn process_folder(&mut self, name: &str, path: &Path) -> Result<(), LoadError> {
+    fn process_folder<TMode: Mode>(&mut self, name: &str, path: &Path) -> Result<(), WebsiteError> {
         let mut index = path.to_path_buf();
         index.push("index.org");
         if index.exists() {
-            self.projects
-                .insert(name.to_string(), Project::load(name, path)?);
+            self.projects.insert(
+                name.to_string(),
+                Project::load::<TMode>(name, path)
+                    .or_else(|err| Err(WebsiteError::Project(name.to_string(), err)))?,
+            );
         } else {
             for file in find_all_project_files(path)?.iter() {
                 // TODO:
                 // Setting the post type here doesn't work if the default project is a multi part project
                 // In which the type should be PostType::Mini
-                self.posts
-                    .insert(file.to_path_buf(), OrgFile::load(&file, PostType::Normal)?);
+                let org = OrgFile::load(&file, PostType::Normal)
+                    .or_else(|err| Err(WebsiteError::Page(file.into(), err)))?;
+
+                if TMode::include_post(&org)
+                    .or_else(|err| Err(WebsiteError::Page(file.into(), err)))?
+                {
+                    self.posts.insert(file.to_path_buf(), org);
+                }
             }
         }
         Ok(())
@@ -225,13 +276,23 @@ fn find_all_project_files(path: &Path) -> Result<Vec<PathBuf>, IOError> {
 }
 
 impl Project {
-    fn load(id: &str, path: &Path) -> Result<Self, LoadError> {
+    fn load<TMode: Mode>(id: &str, path: &Path) -> Result<Self, ProjectError> {
         let mut index = path.to_path_buf();
         index.push("index.org");
-        let index = OrgFile::load(&index, PostType::Index)?;
+        let index = OrgFile::load(&index, PostType::Index);
+        if index.is_err() {
+            return Err(ProjectError::OrgFile(
+                path.to_str().unwrap().to_string() + "/index.org",
+                index.err().unwrap(),
+            ));
+        }
+        let index = index.unwrap();
 
         let project_type = ProjectType::from_str(index.from_preamble("type"));
-        assert!(project_type.is_ok(), "Unknown project type in {:?}", path);
+
+        if project_type.is_err() {
+            return Err(ProjectError::UnknownProjectType);
+        }
         let project_type = project_type.unwrap();
 
         let post_type = if project_type == ProjectType::MultiPart {
@@ -243,13 +304,15 @@ impl Project {
         let mut posts = HashMap::new();
         let mut ids = HashSet::new();
         for path in find_all_project_files(path)?.iter() {
-            let org = OrgFile::load(path, post_type)?;
+            let org = OrgFileError::to_project_error(OrgFile::load(path, post_type), path)?;
             if ids.contains(org.id()) {
-                return Err(LoadError::DuplicateFileID(org.id().to_string()));
+                return Err(ProjectError::DuplicateFileID(org.id().to_string()));
             }
             ids.insert(org.id().to_string());
 
-            posts.insert(org.path.clone(), org);
+            if OrgFileError::to_project_error(TMode::include_post(&org), path)? {
+                posts.insert(org.path.clone(), org);
+            }
         }
 
         Ok(Project {
@@ -274,7 +337,7 @@ impl OrgFile {
         path.is_file() && path.extension().map_or(false, |ext| ext == "org")
     }
 
-    fn load(path: &PathBuf, post_type: PostType) -> Result<Self, LoadError> {
+    fn load(path: &PathBuf, post_type: PostType) -> Result<Self, OrgFileError> {
         assert!(
             OrgFile::is_org_file(path),
             "Trying to load {:?} as orgfile. This shouldn't happen",
@@ -387,11 +450,11 @@ impl BlogElement for Website {
     }
 
     fn title(&self) -> &str {
-        "Johannes Huwald"
+        self.index.title()
     }
 
     fn description(&self) -> &str {
-        "My personal website"
+        self.index.title()
     }
 }
 
@@ -428,7 +491,7 @@ impl BlogElement for OrgFile {
                 return base + "/" + proj.id() + "/" + self.id();
             }
         }
-        panic!("OrgFile:url called with Website that didn't load Orgfile");
+        panic!("OrgFile:url called on element not loaded by given website");
     }
 
     fn title(&self) -> &str {

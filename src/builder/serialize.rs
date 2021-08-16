@@ -108,18 +108,13 @@ impl LayoutInfo {
     pub fn new<T: Mode>(website: &website::Website, mode: &T) -> Self {
         let mut header = Vec::new();
         for page in website.pages.values() {
-            if mode.include_page(page) {
-                let link = SerializedLink::from_blog_element(page, website, mode, LinkType::Page);
-                header.push(link);
-            }
+            let link = SerializedLink::from_blog_element(page, website, mode, LinkType::Page);
+            header.push(link);
         }
 
         for proj in website.projects.values() {
-            if mode.include_project(proj) {
-                let link =
-                    SerializedLink::from_blog_element(proj, website, mode, LinkType::Project);
-                header.push(link);
-            }
+            let link = SerializedLink::from_blog_element(proj, website, mode, LinkType::Project);
+            header.push(link);
         }
 
         header.sort_by(|lhs, rhs| {
@@ -149,7 +144,7 @@ impl website::Website {
         &'a self,
         mode: &T,
         layout: &'a LayoutInfo,
-    ) -> Result<SerializedResult<SerializedPost<'a>>, rendering::HTMLExportError> {
+    ) -> Result<SerializedResult<SerializedPost<'a>>, rendering::SerializationError> {
         self.index.serialize(self, mode, layout)
     }
 }
@@ -177,13 +172,8 @@ impl website::Project {
         website: &'a website::Website,
         mode: &T,
         layout: &'a LayoutInfo,
-    ) -> Result<SerializedResult<SerializedProjectIndex<'a>>, rendering::HTMLExportError> {
-        let mut posts: Vec<PostSummary> = self
-            .posts
-            .values()
-            .filter(|p| mode.include_post(&p))
-            .map(|p| p.into())
-            .collect();
+    ) -> Result<SerializedResult<SerializedProjectIndex<'a>>, rendering::SerializationError> {
+        let mut posts: Vec<PostSummary> = self.posts.values().map(|p| p.into()).collect();
 
         match self
             .index
@@ -218,7 +208,7 @@ impl website::OrgFile {
         website: &'a website::Website,
         mode: &T,
         layout: &'a LayoutInfo,
-    ) -> Result<SerializedResult<SerializedPost<'a>>, rendering::HTMLExportError> {
+    ) -> Result<SerializedResult<SerializedPost<'a>>, rendering::SerializationError> {
         let rr = self.render_html(website, mode)?;
         let mut folder_in = self.path.clone();
         folder_in.pop();

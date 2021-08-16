@@ -17,6 +17,15 @@ use orgize::{Element, Org};
 pub enum HTMLExportError {
     UTF8(FromUtf8Error),
     IO(IOError),
+    UnresolvedLink(String),
+    UnknownLinkFileEnding(String),
+    AttributeInsertError(String),
+}
+
+#[derive(Debug)]
+pub struct SerializationError {
+    file: String,
+    err: HTMLExportError,
 }
 
 impl From<FromUtf8Error> for HTMLExportError {
@@ -208,23 +217,20 @@ impl<'a> OrgHTMLHandler<'a> {
         match link.split(".").last().unwrap() {
             "org" => {
                 let path = post.resolve_link(link);
-                let res = website.resolve_path(&path);
-                assert!(
-                    res.is_some(),
-                    "Unable to resolve link `{}` in {:?}",
-                    link,
-                    post.path
-                );
-                let link = res.unwrap();
-                Ok(ResolvedInternalLink::Post(
-                    link.url(&website, self.base_url.clone()),
-                ))
+                match website.resolve_path(&path) {
+                    None => Err(HTMLExportError::UnresolvedLink(link.to_string())),
+                    Some(p) => Ok(ResolvedInternalLink::Post(
+                        p.url(&website, self.base_url.clone()),
+                    )),
+                }
             }
             "png" | "jpeg" => {
                 self.image_deps.push(String::from(link));
                 Ok(ResolvedInternalLink::Image(link.to_string()))
             }
-            _ => panic!("Unknown file ending for link in {:?}", post.path),
+            _ => Err(HTMLExportError::UnknownLinkFileEnding(
+                post.path.to_str().unwrap().to_string(),
+            )),
         }
     }
 
@@ -267,20 +273,15 @@ impl<'a> OrgHTMLHandler<'a> {
 impl HtmlHandler<HTMLExportError> for OrgHTMLHandler<'_> {
     fn start<W: Write>(&mut self, mut w: W, element: &Element) -> Result<(), HTMLExportError> {
         match element {
-            Element::Keyword(keyword) => self.attributes.insert(keyword).map_or_else(
-                |err| {
-                    panic!("{:?}: {}", self.post.unwrap().path, err);
-                },
-                |handled| {
-                    if !handled {
-                        println!(
-                            "Warning: Unhandled attribute `{}` in {:?}",
-                            keyword.key,
-                            self.post.unwrap().path
-                        )
-                    }
-                },
-            ),
+            Element::Keyword(keyword) => match self.attributes.insert(keyword) {
+                Err(err) => return Err(HTMLExportError::AttributeInsertError(err)),
+                Ok(false) => println!(
+                    "Warning: Unhandled attribute `{}` in {:?}",
+                    keyword.key,
+                    self.post.unwrap().path
+                ),
+                Ok(true) => {}
+            },
             Element::Link(link) => {
                 if self.write_link(&mut w, &link)? {
                     self.fallback.start(w, element)?;
@@ -338,7 +339,7 @@ pub struct OrgExtractGenerator {
 impl OrgExtractGenerator {
     const MAX_LENGTH: usize = 500;
 
-    pub fn generate(file: &website::OrgFile) -> Result<String, HTMLExportError> {
+    fn generate_extract(file: &website::OrgFile) -> Result<String, HTMLExportError> {
         let parser = Org::parse(&file.contents);
         let mut handler = OrgExtractGenerator::default();
         let mut writer = Vec::new();
@@ -348,6 +349,15 @@ impl OrgExtractGenerator {
         }
 
         Ok(String::from_utf8(writer)?)
+    }
+
+    pub fn generate(file: &website::OrgFile) -> Result<String, SerializationError> {
+        Self::generate_extract(file).or_else(|err| {
+            Err(SerializationError {
+                file: file.path.to_str().unwrap().to_string(),
+                err,
+            })
+        })
     }
 
     fn write<W: Write>(&mut self, mut w: W, text: &str) -> Result<(), HTMLExportError> {
@@ -413,7 +423,12 @@ impl website::OrgFile {
         &self,
         website: &website::Website,
         mode: &T,
-    ) -> Result<RenderResult, HTMLExportError> {
-        OrgHTMLHandler::render_post(website, self, mode)
+    ) -> Result<RenderResult, SerializationError> {
+        OrgHTMLHandler::render_post(website, self, mode).or_else(|err| {
+            Err(SerializationError {
+                file: self.path.to_str().unwrap().to_string(),
+                err,
+            })
+        })
     }
 }

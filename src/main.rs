@@ -2,7 +2,7 @@ mod builder;
 use builder::{Builder, Mode, PreviewMode, ReleaseMode};
 
 fn execute<T: Mode>(matches: &clap::ArgMatches) {
-    let builder = match Builder::new(matches.value_of("PATH").unwrap()) {
+    let builder = match Builder::new(matches.value_of("PATH").unwrap(), matches.value_of("theme").unwrap()) {
         Err(err) => panic!("Unable to instantiate builder: {:?}", err),
         Ok(builder) => builder,
     };
@@ -33,6 +33,14 @@ fn main() {
             clap::Arg::with_name("PATH")
                 .help("The path to the blog folder")
                 .required(true),
+        )
+        .arg(
+            clap::Arg::with_name("theme")
+                .long("theme")
+                .help("The path to the theme directory")
+                .required(true)
+                .default_value("theme")
+                .takes_value(true),
         )
         .arg(
             clap::Arg::with_name("file")

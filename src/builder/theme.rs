@@ -106,7 +106,7 @@ impl From<IOError> for RenderError {
 
 pub struct Theme<'a> {
     templates: Handlebars<'a>,
-    theme_dir: &'a str,
+    theme_dir: String,
 }
 
 pub enum TemplateType {
@@ -129,7 +129,7 @@ impl TemplateType {
 }
 
 impl<'a> Theme<'a> {
-    pub fn load(path: &'a str) -> Result<Self, ThemeError> {
+    pub fn load(path: &str) -> Result<Self, ThemeError> {
         let mut templates = Handlebars::new();
         for template in [
             "layout",
@@ -148,7 +148,7 @@ impl<'a> Theme<'a> {
 
         Ok(Theme {
             templates,
-            theme_dir: path,
+            theme_dir: path.into(),
         })
     }
 

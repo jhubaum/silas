@@ -163,9 +163,9 @@ impl Mode for PreviewMode {
 }
 
 impl Builder<'_> {
-    pub fn new(website_path: &str) -> Result<Self, InitError> {
+    pub fn new(website_path: &str, theme_path: &str) -> Result<Self, InitError> {
         Ok(Builder {
-            theme: Theme::load("./theme")?,
+            theme: Theme::load(theme_path)?,
             website: Website::load(website_path)?,
         })
     }

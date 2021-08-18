@@ -164,7 +164,7 @@ blockquote {
     border-left: 0.25rem solid var(--color-dark-grey);
     color: var(--color-dark-grey);
     margin: .8rem 0;
-    padding: 0 5rem 0 1.25rem;
+    padding: 0.5rem 5rem 0.5rem 1.25rem;
 }
 
 blockquote cite::before {

@@ -196,10 +196,12 @@ impl Website {
             }
         }
 
+        let index = index.expect("Found no website index (index.org in root directiory)");
+
         Ok(Website {
-            projects: project_builder.projects("blog")?,
+            projects: project_builder.projects(index.from_preamble("default_project").unwrap_or("blog"))?,
             pages,
-            index: index.expect("Found no website index (index.org in root directiory)"),
+            index
         })
     }
 

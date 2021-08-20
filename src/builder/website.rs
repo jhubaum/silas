@@ -218,6 +218,15 @@ impl Website {
 
         None
     }
+
+pub fn page_by_id(&self, id: &str) -> Option<&OrgFile> {
+        for page in self.pages.values() {
+            if page.id() == id {
+                return Some(&page);
+            }
+        }
+        None
+    }
 }
 
 impl ProjectBuilder {

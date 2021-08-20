@@ -1,0 +1,3 @@
+#+title: Default project
+
+Only added for now to prevent the error that is otherwise thrown.

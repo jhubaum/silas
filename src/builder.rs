@@ -303,3 +303,23 @@ impl<'a> Builder<'a> {
         Ok(File::create(&filename)?)
     }
 }
+
+#[test]
+fn test_release_mode() -> Result<(), WebsiteError>{
+    let website = Website::load::<ReleaseMode>("testsite")?;
+    assert!(website.page_by_id("unpublished").is_none());
+
+    Ok(())
+}
+
+#[test]
+fn test_preview_mode() -> Result<(), WebsiteError>{
+    let website = Website::load::<PreviewMode>("testsite")?;
+
+    let unpub = website.page_by_id("unpublished");
+    assert!(unpub.is_some());
+    let unpub = unpub.unwrap();
+    assert!(unpub.published.is_none());
+
+    Ok(())
+}

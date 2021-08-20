@@ -186,7 +186,9 @@ impl Website {
                     .or_else(|err| Err(WebsiteError::Page((&path).into(), err)))?;
                 if path.file_name().unwrap() == "index.org" {
                     index = Some(org);
-                } else {
+                } else if TMode::include_page(&org)
+                    .or_else(|err| Err(WebsiteError::Page((&path).into(), err)))?
+                {
                     pages.insert(org.path.clone(), org);
                 }
             } else if path.is_dir() {

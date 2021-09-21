@@ -272,6 +272,9 @@ impl<'a> OrgHTMLHandler<'a> {
 
 impl HtmlHandler<HTMLExportError> for OrgHTMLHandler<'_> {
     fn start<W: Write>(&mut self, mut w: W, element: &Element) -> Result<(), HTMLExportError> {
+        lazy_static! {
+            static ref LINEBREAKS: Regex = Regex::new("\\n").unwrap();
+        }
         match element {
             Element::Keyword(keyword) => match self.attributes.insert(keyword) {
                 Err(err) => return Err(HTMLExportError::AttributeInsertError(err)),
@@ -281,6 +284,9 @@ impl HtmlHandler<HTMLExportError> for OrgHTMLHandler<'_> {
                     self.post.unwrap().path
                 ),
                 Ok(true) => {}
+            },
+            Element::Text{value} => {
+                write!(w, "{}", LINEBREAKS.replace_all(value, "<br>\n"))?;
             },
             Element::Link(link) => {
                 if self.write_link(&mut w, &link)? {

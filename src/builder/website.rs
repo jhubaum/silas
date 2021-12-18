@@ -211,6 +211,9 @@ impl Website {
         }
 
         for proj in self.projects.values() {
+            if proj.index.path == path {
+                return Some(&proj.index);
+            }
             if let Some(post) = proj.posts.get(path) {
                 return Some(post);
             }

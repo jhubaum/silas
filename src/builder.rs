@@ -245,6 +245,7 @@ impl<'a> Builder<'a> {
             rss.insert_file(&ser);
             let file = self.prepare_file(page, &mut ser.folder_out)?;
             self.render_element(file, TemplateType::Page, &ser)?;
+            page.copy_dependencies(&ser.folder_out)?;
         }
 
         for project in self.website.projects.values() {
@@ -252,12 +253,14 @@ impl<'a> Builder<'a> {
             rss.start_project(project.id(), &ser);
             let file = self.prepare_file(project, &mut ser.folder_out)?;
             self.render_element(file, TemplateType::Project(project.project_type), &ser)?;
+            project.index.copy_dependencies(&ser.folder_out)?;
 
             for post in project.posts.values() {
                 let mut ser = post.serialize(&self.website, &mode, &layout)?;
                 rss.insert_file(&ser);
                 let file = self.prepare_file(post, &mut ser.folder_out)?;
                 self.render_element(file, TemplateType::Post, &ser)?;
+                post.copy_dependencies(&ser.folder_out)?;
             }
             rss.finish_project();
         }

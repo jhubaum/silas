@@ -7,6 +7,7 @@ use orgize::{Element, Event, Org};
 use std::fs;
 
 use super::Mode;
+use super::fileutil::copy_folder_recursively;
 
 #[derive(Debug)]
 pub enum WebsiteError {
@@ -457,6 +458,31 @@ impl OrgFile {
         }
 
         path
+    }
+
+    pub fn copy_dependencies(&self, folder_out: &str) -> Result<(), std::io::Error> {
+        let mut folder_path = self.path.clone();
+        folder_path.set_file_name("js");
+        if folder_path.exists() {
+            copy_folder_recursively(&folder_path, folder_out)?;
+        }
+        folder_path.set_file_name("css");
+        if folder_path.exists() {
+            copy_folder_recursively(&folder_path, folder_out)?;
+        }
+        folder_path.pop();
+        for file in fs::read_dir(folder_path)? {
+            let path = file?.path();
+            match path.extension().map(|s| s.to_str().unwrap()) {
+                Some("js") | Some("css") => {
+                    let mut target = PathBuf::from(folder_out);
+                    target.push(path.file_name().unwrap());
+                    fs::copy(path, target)?;
+                }
+                _ => { }
+            };
+        }
+        Ok(())
     }
 }
 
